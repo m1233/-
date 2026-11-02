@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>رحلة استكشاف الحقوق — يوم الطفل</title>
+<style>
+@font-face { font-family: "Lalezar"; src: url("../assets/fonts/Lalezar-Regular.ttf"); }
+@font-face { font-family: "Baloo"; src: url("../assets/fonts/BalooBhaijaan2-Variable.ttf"); font-weight: 400 800; }
+@font-face { font-family: "Kufi"; src: url("../assets/fonts/ReemKufi-Variable.ttf"); font-weight: 400 700; }
+:root { --yellow: #FFE14D; --pink: #FFB8DE; --blue: #5AB4FF; --mint: #7DF0C8; --ink: #1B1450; --white: #FFFFFF; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0B0830; }
+body { font-family: "Baloo", "Noto Color Emoji", sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+canvas.full { position: absolute; left: 0; top: 0; }
+#world { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; }
+.grp { position: absolute; width: 1080px; height: 1920px; }
+.abs { position: absolute; }
+.emo { font-family: "Noto Color Emoji"; line-height: 1; }
+.game { font-family: "Lalezar", "Noto Color Emoji"; font-weight: 400; }
+.ctr { transform: translate(-50%, -50%); }
+.layer { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 50% 75%; }
+svg { overflow: visible; display: block; }
+#ov { position: absolute; inset: 0; }
+.gtext { background: linear-gradient(180deg, #FFF7B0 0%, #FFE14D 45%, #FF9ED2 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 0 #5B2A86) drop-shadow(0 0 22px rgba(255,184,222,.55)); }
+.card3d { position: absolute; left: 540px; padding: 26px 54px 34px; border-radius: 48px; text-align: center; white-space: nowrap;
+  background: linear-gradient(160deg, rgba(76,52,190,.96), rgba(35,22,110,.96)); border: 6px solid #FFE14D;
+  box-shadow: 0 18px 0 #1A0F5C, 0 30px 80px rgba(0,0,0,.5), inset 0 0 40px rgba(255,184,222,.25); transform-origin: 50% 100%; }
+.chip { display: inline-flex; align-items: center; gap: 14px; padding: 8px 30px 12px; border-radius: 999px; white-space: nowrap; font-weight: 800; }
+/* dialog / kinetic reward words */
+#dlg { position: absolute; left: 50px; top: 1218px; width: 980px; min-height: 250px; border-radius: 44px; padding: 34px 40px 30px 40px;
+  background: linear-gradient(180deg, rgba(40,26,120,.88), rgba(22,14,70,.92)); border: 5px solid rgba(255,225,77,.85);
+  box-shadow: 0 14px 0 rgba(15,8,50,.9), 0 0 60px rgba(255,184,222,.25); }
+#dlgWords { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 18px; padding-right: 0; padding-left: 170px; min-height: 180px; }
+.tok { position: relative; display: inline-block; font-size: 60px; font-weight: 800; line-height: 1.25; }
+.tok .pts { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); font-family: "Lalezar"; font-size: 34px; color: #FFE14D; white-space: nowrap; text-shadow: 0 2px 0 #5B2A86; }
+#guide { position: absolute; left: 34px; top: 1100px; width: 220px; height: 260px; }
+#hud { position: absolute; left: 0; top: 0; width: 1080px; height: 420px; }
+.slot { position: absolute; width: 104px; height: 104px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 58px;
+  background: rgba(20,12,70,.8); border: 5px solid rgba(255,255,255,.35); }
+#final { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" class="full" width="1080" height="1920"></canvas>
+  <div id="world"></div>
+  <div id="ov"></div>
+  <canvas id="fx" class="full" width="1080" height="1920"></canvas>
+  <div id="ov2" class="abs" style="inset:0"></div>
+  <div id="final"></div>
+  <div id="black" class="abs" style="inset:0;background:#000;opacity:0"></div>
+</div>
+<script>
+"use strict";
+/* =========================================================================
+   Deterministic motion engine. Every frame is a pure function render(t).
+   TL   = narration word timestamps; PLAN = scene cue sheet (shared with audio).
+   ========================================================================= */
+const TL = window.TL, P = window.PLAN;
+const W = 1080, H = 1920, NS = "http://www.w3.org/2000/svg";
+const $ = s => document.querySelector(s);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const win = (t, a, b, fi = .4, fo = .4) => prog(t, a, a + fi) * (1 - prog(t, b - fo, b));
+const E = {
+  io: k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2,
+  out: k => 1 - Math.pow(1 - k, 3),
+  back: k => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); },
+  el: k => k === 0 ? 0 : k === 1 ? 1 : Math.pow(2, -10 * k) * Math.sin((k * 10 - .75) * 2.094) + 1,
+};
+const hash = (i, s = 1) => { const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); };
+const anims = []; const on = f => anims.push(f);
+function el(tag, attrs = {}, parent, html) {
+  const e = document.createElement(tag);
+  for (const k in attrs) k === "style" ? e.style.cssText = attrs[k] : e.setAttribute(k, attrs[k]);
+  if (html != null) e.innerHTML = html;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function svgEl(parent, w, h, inner, style = "") {
+  const d = el("div", { class: "abs", style }, parent);
+  d.innerHTML = `<svg xmlns="${NS}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${inner}</svg>`;
+  return d;
+}
+const tf = (e, s) => { e.style.transform = s; };
+const op = (e, v) => { e.style.opacity = v; e.style.visibility = v <= 0.001 ? "hidden" : "visible"; };
+function popScale(t, t0, d = .55) { return E.back(prog(t, t0, t0 + d)); }
+
+/* ---------- palette & geometry ---------- */
+const Y = "#FFE14D", PK = "#FFB8DE", BL = "#5AB4FF", MI = "#7DF0C8", IN = "#1B1450", WH = "#FFFFFF";
+const I = [[540, 960], [540, 3560], [2140, 3560], [2140, 960], [3740, 960]];
+const MAP = [2140, 2260, .245];
+const LV = P.levels, ST = P.start;
+
+/* =========================== BACKGROUND =========================== */
+const bg = $("#bg").getContext("2d");
+const stars = Array.from({ length: 230 }, (_, i) => ({ x: hash(i, 1) * W, y: hash(i, 2) * H, r: .6 + hash(i, 3) * 2.4, z: .15 + hash(i, 4) * .85, ph: hash(i, 5) * 6.28, c: hash(i, 6) }));
+const PAL = { L0: ["#0B0830", "#251670"], L1: ["#0C1248", "#2B2F95"], L2: ["#062B3D", "#126C6A"], L3: ["#2A2B86", "#7476E0"], L4: ["#151142", "#46307E"], MAP: ["#0B0830", "#2A1A78"] };
+function hex2(c) { return [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)); }
+function mixc(a, b, k) { const A = hex2(a), B = hex2(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], k))).join(",")})`; }
+function palette(t) {
+  const seg = [[0, "L0"], [33.5, "MAP"], [58.5, "L1"], [137.5, "L2"], [217.5, "L3"], [297.5, "L4"], [377.5, "MAP"]];
+  let i = 0; while (i < seg.length - 1 && t >= seg[i + 1][0]) i++;
+  const cur = PAL[seg[i][1]], prev = i ? PAL[seg[i - 1][1]] : cur, k = E.io(prog(t, seg[i][0], seg[i][0] + 2.5));
+  return [mixc(prev[0], cur[0], k), mixc(prev[1], cur[1], k)];
+}
+function drawBG(t, cam) {
+  const [c0, c1] = palette(t);
+  const g = bg.createLinearGradient(0, 0, 0, H); g.addColorStop(0, c0); g.addColorStop(1, c1);
+  bg.fillStyle = g; bg.fillRect(0, 0, W, H);
+  // soft nebulae
+  [[260, 520, PK, .16], [860, 1300, BL, .16], [600, 1700, "#B28DFF", .12]].forEach(([x, y, c, a], i) => {
+    const xx = x + Math.sin(t * .1 + i) * 60 - cam.x * .02, yy = y + Math.cos(t * .08 + i) * 50;
+    const rg = bg.createRadialGradient(xx, yy, 10, xx, yy, 620);
+    rg.addColorStop(0, c + Math.round(a * 255).toString(16).padStart(2, "0")); rg.addColorStop(1, c + "00");
+    bg.fillStyle = rg; bg.fillRect(0, 0, W, H);
+  });
+  for (let i = 0; i < stars.length; i++) {
+    const s = stars[i];
+    const x = ((s.x - cam.x * .08 * s.z * cam.z + Math.sin(t * .05 + s.ph) * 10) % W + W) % W;
+    const y = ((s.y - cam.y * .08 * s.z * cam.z - t * 4 * s.z) % H + H) % H;
+    const tw = .45 + .55 * Math.abs(Math.sin(t * (.6 + s.z) + s.ph));
+    bg.globalAlpha = tw * (.35 + .65 * s.z);
+    bg.fillStyle = s.c < .15 ? Y : s.c < .3 ? PK : "#fff";
+    bg.beginPath(); bg.arc(x, y, s.r * (s.z + .4), 0, 6.283); bg.fill();
+    if (s.r > 2.4) { bg.fillRect(x - s.r * 3, y - .6, s.r * 6, 1.2); bg.fillRect(x - .6, y - s.r * 3, 1.2, s.r * 6); }
+  }
+  bg.globalAlpha = 1;
+}
+
+/* =========================== CAMERA =========================== */
+const K = [];
+(function buildCam() {
+  K.push([0, 540, 1150, 1.28], [4, 540, 960, 1.0], [ST.narrStart, 540, 900, 1.02], [ST.mapIn, 540, 1000, 1.05],
+    [ST.mapIn + 3.2, MAP[0], MAP[1], MAP[2]], [ST.dive, MAP[0] - 300, MAP[1] - 200, .27],
+    [ST.dive + 2.2, 540, 1700, .62]);
+  LV.forEach((l, k) => {
+    const [x, y] = I[k + 1], S = l.S;
+    K.push([S, x, y - 200, 1], [S + 5, x, y - 190, 1.02], [l.narrStart + 3, x, y - 60, 1.04], [l.narrEnd, x, y + 50, 1.06],
+      [l.mission + 1.2, x, y + 150, .97], [l.complete, x, y + 110, 1.0], [l.leave, x, y + 20, 1.0]);
+    if (k < 3) { const [nx, ny] = I[k + 2]; K.push([S + 77.8, (x + nx) / 2, (y + ny) / 2, .7]); }
+  });
+  K.push([P.win, MAP[0], MAP[1], MAP[2]], [P.final, MAP[0], MAP[1] - 60, .26], [420, MAP[0], MAP[1] - 80, .25]);
+  K.sort((a, b) => a[0] - b[0]);
+})();
+function camAt(t) {
+  let i = 0; while (i < K.length - 2 && t >= K[i + 1][0]) i++;
+  const a = K[i], b = K[i + 1], k = E.io(prog(t, a[0], b[0]));
+  const z = Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), k));
+  return { x: lerp(a[1], b[1], k) + Math.sin(t * .6) * 5, y: lerp(a[2], b[2], k) + Math.cos(t * .45) * 7, z };
+}
+function applyCam(t) {
+  const c = camAt(t);
+  $("#world").style.transform = `translate(540px,960px) scale(${c.z}) translate(${-c.x}px,${-c.y}px)`;
+  return c;
+}
+
+/* =========================== WORLD: islands =========================== */
+const world = $("#world");
+function island(k) {
+  const [x, y] = I[k];
+  const g = el("div", { class: "grp", style: `left:${x - 540}px;top:${y - 960}px` }, world);
+  g.layers = [];
+  return g;
+}
+function layer(g, t0, i) { // pop-up 3D layer (book pop-up)
+  const L = el("div", { class: "layer" }, g);
+  const tt0 = t0 + i * .28;
+  on(t => {
+    const k = prog(t, tt0, tt0 + .9), e = E.back(k);
+    tf(L, `perspective(1500px) translateY(${(1 - E.out(k)) * 160}px) rotateX(${(1 - e) * 84}deg) scale(${lerp(.7, 1, E.out(k))})`);
+    L.style.opacity = clamp(k * 3);
+  });
+  return L;
+}
+function visibleGroup(g, k, from, to) {
+  on((t, cam) => {
+    const [x, y] = I[k];
+    const vis = t >= from && t <= to && cam.z > .45 && Math.abs(cam.x - x) < 1300 / cam.z && Math.abs(cam.y - y) < 1900 / cam.z;
+    g.style.display = vis ? "block" : "none";
+  });
+}
+
+/* ---------- Island 0 : magic portal ---------- */
+function island0() {
+  const g = island(0); visibleGroup(g, 0, 0, ST.dive + 3);
+  const p = svgEl(g, 900, 900, `
+    <defs><radialGradient id="pg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFF6FF"/><stop offset=".35" stop-color="${PK}"/><stop offset=".7" stop-color="#7B5CFF" stop-opacity=".7"/><stop offset="1" stop-color="#3A1E9E" stop-opacity="0"/></radialGradient></defs>
+    <g transform="translate(450,450)">
+      <circle id="core" r="330" fill="url(#pg)"/>
+      <g id="sw">${Array.from({ length: 6 }, (_, i) => `<path d="M0 0 C 80 -60, 200 -40, 280 40" fill="none" stroke="${i % 2 ? Y : WH}" stroke-opacity=".55" stroke-width="10" stroke-linecap="round" transform="rotate(${i * 60})"/>`).join("")}</g>
+      <circle id="r1" r="360" fill="none" stroke="${Y}" stroke-width="14" stroke-dasharray="60 30"/>
+      <circle id="r2" r="395" fill="none" stroke="${PK}" stroke-width="8" stroke-dasharray="20 26"/>
+      <circle id="r3" r="425" fill="none" stroke="${BL}" stroke-width="6" stroke-dasharray="4 18" stroke-linecap="round"/>
+      <g id="spk">${Array.from({ length: 10 }, (_, i) => `<path d="M0 -26 L7 -7 L26 0 L7 7 L0 26 L-7 7 L-26 0 L-7 -7Z" fill="${i % 2 ? Y : WH}"/>`).join("")}</g>
+    </g>`, "left:90px;top:520px");
+  const q = s => p.querySelector(s);
+  on(t => {
+    const o = E.out(prog(t, ST.portal, ST.portal + 2.6));
+    q("#core").setAttribute("transform", `scale(${o * (1 + Math.sin(t * 2) * .03)})`);
+    q("#sw").setAttribute("transform", `rotate(${t * 70}) scale(${o})`);
+    q("#r1").setAttribute("transform", `rotate(${t * 25}) scale(${E.back(prog(t, ST.portal, ST.portal + 1.2))})`);
+    q("#r2").setAttribute("transform", `rotate(${-t * 35}) scale(${E.back(prog(t, ST.portal + .3, ST.portal + 1.5))})`);
+    q("#r3").setAttribute("transform", `rotate(${t * 15}) scale(${E.back(prog(t, ST.portal + .6, ST.portal + 1.8))})`);
+    [...q("#spk").children].forEach((s, i) => {
+      const a = t * .8 + i * .628, r = 450 + Math.sin(t * 2 + i) * 30;
+      s.setAttribute("transform", `translate(${Math.cos(a) * r},${Math.sin(a) * r}) scale(${o * (.6 + .4 * Math.abs(Math.sin(t * 3 + i)))}) rotate(${t * 90})`);
+    });
+    p.style.opacity = prog(t, ST.portal - .2, ST.portal + .6);
+  });
+}
+
+/* ---------- Island 1 : flying castle of books ---------- */
+const BOOKC = ["#FF6B8B", "#5AB4FF", "#FFE14D", "#6EE7A8", "#B28DFF", "#FFB8DE", "#FF9F45"];
+function bookStack(x, yBottom, w, n, seed) {
+  let s = "", y = yBottom;
+  for (let i = 0; i < n; i++) {
+    const h = 34 + hash(i, seed) * 16, ww = w - hash(i, seed + 1) * 26, off = (hash(i, seed + 2) - .5) * 16;
+    y -= h;
+    const c = BOOKC[(i + seed) % BOOKC.length];
+    s += `<rect x="${x - ww / 2 + off}" y="${y}" width="${ww}" height="${h - 3}" rx="8" fill="${c}" stroke="${IN}" stroke-width="4"/>
+      <rect x="${x - ww / 2 + off + ww - 26}" y="${y + 6}" width="18" height="${h - 15}" rx="3" fill="#FFF8E7"/>
+      <rect x="${x - ww / 2 + off + 14}" y="${y + h / 2 - 5}" width="${ww * .45}" height="5" rx="2" fill="${IN}" opacity=".35"/>`;
+  }
+  return { s, top: y };
+}
+function cloudPuffs(cx, cy, w, col = "#FFFFFF", op2 = 1) {
+  const n = 7; let s = "";
+  for (let i = 0; i < n; i++) { const x = cx - w / 2 + (i + .5) * w / n, r = w / n * (.9 + hash(i, cx) * .6); s += `<circle cx="${x}" cy="${cy - Math.sin(i / (n - 1) * Math.PI) * w * .08}" r="${r}" fill="${col}" opacity="${op2}"/>`; }
+  return s + `<rect x="${cx - w / 2}" y="${cy}" width="${w}" height="${w * .1}" rx="${w * .05}" fill="${col}" opacity="${op2}"/>`;
+}
+function island1() {
+  const l = LV[0], g = island(1); visibleGroup(g, 1, l.S - 3, l.next + .5);
+  const L0 = layer(g, l.popup, 0), L1 = layer(g, l.popup, 1), L2 = layer(g, l.popup, 2);
+  // base cloud + rock
+  svgEl(L0, 1080, 1920, `<ellipse cx="540" cy="1250" rx="420" ry="70" fill="#000" opacity=".18"/>
+    <path d="M200 1090 Q540 1420 880 1090 Z" fill="#6D4FD6" stroke="${IN}" stroke-width="6"/><path d="M260 1100 Q540 1330 820 1100" fill="none" stroke="#9C84FF" stroke-width="10" opacity=".7"/>
+    ${cloudPuffs(540, 1090, 820, "#EDE7FF")}`, "left:0;top:0");
+  // castle of books
+  const t1 = bookStack(320, 1080, 190, 9, 3), t2 = bookStack(540, 1080, 250, 12, 7), t3 = bookStack(760, 1080, 190, 9, 11);
+  const roof = (x, y, w, c) => `<path d="M${x - w / 2 - 16} ${y} L${x} ${y - w * .85} L${x + w / 2 + 16} ${y}Z" fill="${c}" stroke="${IN}" stroke-width="5" stroke-linejoin="round"/>
+     <line x1="${x}" y1="${y - w * .85}" x2="${x}" y2="${y - w * .85 - 90}" stroke="${IN}" stroke-width="6"/>`;
+  const cas = svgEl(L1, 1080, 1920, `${t1.s}${t2.s}${t3.s}${roof(320, t1.top, 190, PK)}${roof(540, t2.top, 250, BL)}${roof(760, t3.top, 190, PK)}
+    <path d="M440 1080 V960 Q540 880 640 960 V1080Z" fill="#FFF8E7" stroke="${IN}" stroke-width="6"/><line x1="540" y1="912" x2="540" y2="1080" stroke="${IN}" stroke-width="5"/>
+    <g id="flags">${[[320, t1.top - 161], [540, t2.top - 212], [760, t3.top - 161]].map(([x, y], i) => `<path data-x="${x}" data-y="${y - 90}" fill="${i === 1 ? Y : MI}" stroke="${IN}" stroke-width="4"/>`).join("")}</g>`, "left:0;top:0");
+  const flags = [...cas.querySelectorAll("#flags path")];
+  // flying telescopes, pencils, sparkles
+  const tel = `<g><rect x="-70" y="-16" width="110" height="32" rx="10" fill="${BL}" stroke="${IN}" stroke-width="5"/><rect x="36" y="-22" width="34" height="44" rx="8" fill="${Y}" stroke="${IN}" stroke-width="5"/><line x1="-20" y1="16" x2="-40" y2="60" stroke="${IN}" stroke-width="6"/><line x1="-20" y1="16" x2="0" y2="60" stroke="${IN}" stroke-width="6"/></g>`;
+  const pen = c => `<g><rect x="-60" y="-13" width="100" height="26" rx="4" fill="${c}" stroke="${IN}" stroke-width="5"/><path d="M40 -13 L70 0 L40 13Z" fill="#FFD9A8" stroke="${IN}" stroke-width="5" stroke-linejoin="round"/><rect x="-74" y="-13" width="16" height="26" rx="5" fill="${PK}" stroke="${IN}" stroke-width="5"/></g>`;
+  const items = [tel, pen(Y), pen(MI), tel, pen(PK), pen(BL)];
+  const fly = svgEl(L2, 1080, 1920, items.map((s, i) => `<g class="fi">${s}</g>`).join("") +
+    Array.from({ length: 16 }, (_, i) => `<path class="st" d="M0 -18 L5 -5 L18 0 L5 5 L0 18 L-5 5 L-18 0 L-5 -5Z" fill="${Y}"/>`).join(""), "left:0;top:0");
+  on(t => {
+    if (g.style.display === "none") return;
+    tf(cas, `translateY(${Math.sin(t * 1.2) * 14}px)`);
+    flags.forEach((f, i) => { const x = +f.dataset.x, y = +f.dataset.y, w = Math.sin(t * 5 + i) * 10;
+      f.setAttribute("d", `M${x} ${y} Q${x + 40} ${y - 12 + w} ${x + 80} ${y + w} Q${x + 40} ${y + 30 + w * .5} ${x} ${y + 40}Z`); });
+    fly.querySelectorAll(".fi").forEach((e, i) => {
+      const a = t * (.35 + i * .04) + i * 1.05, rx = 430, ry = 240;
+      e.setAttribute("transform", `translate(${540 + Math.cos(a) * rx},${700 + Math.sin(a) * ry + Math.sin(t * 2 + i) * 20}) rotate(${Math.sin(t + i) * 25 + (Math.cos(a) > 0 ? 0 : 180)}) scale(${.9 + .25 * Math.sin(a)})`);
+    });
+    fly.querySelectorAll(".st").forEach((e, i) => {
+      const ph = (t * .35 + i / 16) % 1, a = i * 2.4;
+      e.setAttribute("transform", `translate(${540 + Math.cos(a) * (200 + ph * 300)},${760 - ph * 500 + Math.sin(a) * 100}) scale(${Math.sin(ph * Math.PI) * (.6 + hash(i) * .8)}) rotate(${t * 60})`);
+      e.setAttribute("opacity", .5 + .5 * Math.sin(ph * Math.PI));
+    });
+  });
+}
+
+/* ---------- Island 2 : energy oasis ---------- */
+function island2() {
+  const l = LV[1], g = island(2); visibleGroup(g, 2, l.S - 3, l.next + .5);
+  const L0 = layer(g, l.popup, 0), L1 = layer(g, l.popup, 1), L2 = layer(g, l.popup, 2);
+  svgEl(L0, 1080, 1920, `<ellipse cx="540" cy="1150" rx="520" ry="200" fill="#3FBF7F" stroke="${IN}" stroke-width="6"/>
+    <ellipse cx="540" cy="1110" rx="500" ry="170" fill="#5FD99A"/>
+    <ellipse id="pond" cx="560" cy="1130" rx="200" ry="55" fill="#5AB4FF" stroke="${IN}" stroke-width="5"/>
+    <ellipse id="rip" cx="560" cy="1130" rx="120" ry="30" fill="none" stroke="#fff" stroke-width="4" opacity=".6"/>
+    ${[[150, 1060], [930, 1070], [300, 1190], [800, 1200]].map(([x, y]) => `<path d="M${x} ${y} q8 -40 16 0 q8 -50 16 0" fill="#2E9E62"/>`).join("")}`, "left:0;top:0");
+  // palm trees
+  const palm = (x, y, s, id) => `<g id="${id}" transform="translate(${x},${y}) scale(${s})"><path d="M0 0 C 10 -120, -10 -240, 20 -330" fill="none" stroke="#B9783F" stroke-width="34" stroke-linecap="round"/>
+    <path d="M0 0 C 10 -120, -10 -240, 20 -330" fill="none" stroke="${IN}" stroke-width="4" stroke-dasharray="6 26"/>
+    <g class="fr" transform="translate(20,-330)">${[-150, -100, -40, 20, 80, 140].map(a => `<path d="M0 0 C 50 -40, 120 -30, 170 20 C 110 0, 50 0, 0 0Z" fill="#3FBF7F" stroke="${IN}" stroke-width="4" transform="rotate(${a})"/>`).join("")}
+    <circle cx="-10" cy="12" r="16" fill="#8B5A2B"/><circle cx="14" cy="16" r="16" fill="#8B5A2B"/></g></g>`;
+  // doctor
+  const doc = `<g id="doc" transform="translate(800,860)">
+    <path d="M-80 250 Q-90 100 -60 60 Q0 30 60 60 Q90 100 80 250Z" fill="#FFFFFF" stroke="${IN}" stroke-width="6"/>
+    <path d="M-20 60 L0 140 L20 60" fill="${BL}" stroke="${IN}" stroke-width="5"/>
+    <path d="M-30 80 Q-40 150 0 170 Q40 150 30 80" fill="none" stroke="${IN}" stroke-width="6"/><circle cx="0" cy="175" r="12" fill="#C0C8D8" stroke="${IN}" stroke-width="5"/>
+    <rect x="30" y="130" width="34" height="14" rx="4" fill="#FF6B8B"/><rect x="40" y="120" width="14" height="34" rx="4" fill="#FF6B8B"/>
+    <g id="arm" transform="translate(70,90)"><path d="M0 0 Q50 -40 70 -110" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round"/><path d="M0 0 Q50 -40 70 -110" fill="none" stroke="${IN}" stroke-width="40" stroke-linecap="round" opacity=".0"/><circle cx="70" cy="-118" r="22" fill="#FFD6B8" stroke="${IN}" stroke-width="5"/></g>
+    <path d="M-70 90 Q-90 170 -70 220" fill="none" stroke="#FFFFFF" stroke-width="32" stroke-linecap="round"/><circle cx="-70" cy="226" r="20" fill="#FFD6B8" stroke="${IN}" stroke-width="5"/>
+    <circle cx="0" cy="0" r="70" fill="#FFD6B8" stroke="${IN}" stroke-width="6"/>
+    <path d="M-70 -10 Q-70 -80 0 -80 Q70 -80 70 -10 Q50 -50 0 -48 Q-50 -50 -70 -10Z" fill="#6B3E26" stroke="${IN}" stroke-width="5"/>
+    <g id="deyes"><circle cx="-24" cy="0" r="9" fill="${IN}"/><circle cx="24" cy="0" r="9" fill="${IN}"/></g>
+    <circle cx="-40" cy="24" r="10" fill="${PK}" opacity=".8"/><circle cx="40" cy="24" r="10" fill="${PK}" opacity=".8"/>
+    <path d="M-22 28 Q0 50 22 28" fill="none" stroke="${IN}" stroke-width="6" stroke-linecap="round"/>
+    <rect x="-46" y="-96" width="92" height="30" rx="10" fill="#fff" stroke="${IN}" stroke-width="5"/><rect x="-8" y="-92" width="16" height="22" fill="#FF6B8B"/><rect x="-11" y="-88" width="22" height="14" fill="#FF6B8B"/></g>`;
+  const mid = svgEl(L1, 1080, 1920, palm(170, 1100, 1.05, "pa") + palm(380, 1080, .8, "pb") + doc, "left:0;top:0");
+  // pulsing medical heart + flying fruits
+  const heart = svgEl(L2, 400, 400, `<defs><radialGradient id="hg"><stop offset="0" stop-color="#FFD3EA"/><stop offset="1" stop-color="#FF7FB6"/></radialGradient></defs>
+    <g transform="translate(200,200)"><circle id="hglow" r="170" fill="${PK}" opacity=".25"/>
+    <path id="hp" d="M0 120 C -150 20, -150 -110, -60 -110 C -20 -110, 0 -80, 0 -60 C 0 -80, 20 -110, 60 -110 C 150 -110, 150 20, 0 120Z" fill="url(#hg)" stroke="${IN}" stroke-width="7"/>
+    <rect x="-16" y="-50" width="32" height="96" rx="8" fill="#fff"/><rect x="-48" y="-18" width="96" height="32" rx="8" fill="#fff"/>
+    <ellipse cx="-62" cy="-70" rx="22" ry="12" fill="#fff" opacity=".6" transform="rotate(-30 -62 -70)"/></g>`, "left:340px;top:330px");
+  const FR = ["🍎", "🍌", "🥕", "🍓", "🥦", "🍊", "🍇", "🍉"];
+  const fr = FR.map((f, i) => el("div", { class: "abs emo", style: "left:0;top:0;font-size:96px" }, L2, f));
+  on(t => {
+    if (g.style.display === "none") return;
+    const beat = (t * 1.25) % 1, pulse = 1 + .1 * Math.exp(-beat * 9) + .06 * Math.exp(-Math.max(0, beat - .22) * 9) * (beat > .22);
+    heart.querySelector("#hp").setAttribute("transform", `scale(${pulse})`);
+    heart.querySelector("#hglow").setAttribute("transform", `scale(${.9 + beat * .4})`); heart.querySelector("#hglow").setAttribute("opacity", .35 * (1 - beat));
+    tf(heart, `translateY(${Math.sin(t * 1.3) * 12}px)`);
+    fr.forEach((e, i) => { const a = t * .4 + i * .785, x = 540 + Math.cos(a) * 400, y = 560 + Math.sin(a) * 200;
+      tf(e, `translate(${x - 48}px,${y - 48 + Math.sin(t * 3 + i) * 14}px) rotate(${Math.sin(t * 1.5 + i) * 20}deg) scale(${.8 + .3 * Math.sin(a)})`); e.style.zIndex = Math.sin(a) > 0 ? 3 : 1; });
+    const arm = mid.querySelector("#arm"); arm.setAttribute("transform", `translate(70,90) rotate(${Math.sin(t * 6) * 22})`);
+    const bl = (t % 3.7) < .13 ? .15 : 1; mid.querySelector("#deyes").setAttribute("transform", `translate(0,0) scale(1,${bl})`);
+    const sw = Math.sin(t * 1.4) * 4;
+    mid.querySelectorAll(".fr").forEach((f, i) => f.setAttribute("transform", `translate(20,-330) rotate(${sw + i * 2})`));
+    mid.querySelector("#doc").setAttribute("transform", `translate(800,${860 + Math.abs(Math.sin(t * 3)) * -8})`);
+    g.querySelector("#rip") && g.querySelector("#rip").setAttribute("rx", 60 + (t * 60) % 140);
+  });
+}
+
+/* ---------- Island 3 : cloud fun land ---------- */
+function island3() {
+  const l = LV[2], g = island(3); visibleGroup(g, 3, l.S - 3, l.next + .5);
+  const L0 = layer(g, l.popup, 0), L1 = layer(g, l.popup, 1), L2 = layer(g, l.popup, 2);
+  const rb = ["#FF6B8B", "#FF9F45", "#FFE14D", "#6EE7A8", "#5AB4FF", "#B28DFF"];
+  svgEl(L0, 1080, 1920, rb.map((c, i) => `<path d="M${90 + i * 30} 1000 A ${450 - i * 30} ${450 - i * 30} 0 0 1 ${990 - i * 30} 1000" fill="none" stroke="${c}" stroke-width="30" opacity=".85"/>`).join("") +
+    cloudPuffs(540, 1120, 980, "#FFFFFF") + cloudPuffs(540, 1180, 900, "#E3E6FF"), "left:0;top:0");
+  const swing = svgEl(L1, 1080, 1920, `${cloudPuffs(540, 330, 560, "#FFFFFF")}
+    <g id="sw" transform="translate(540,340)"><line x1="-90" y1="0" x2="-90" y2="470" stroke="${IN}" stroke-width="7"/><line x1="90" y1="0" x2="90" y2="470" stroke="${IN}" stroke-width="7"/>
+      <rect x="-120" y="462" width="240" height="26" rx="12" fill="${PK}" stroke="${IN}" stroke-width="6"/>
+      <g transform="translate(0,380)"><path d="M-50 80 Q-55 10 0 0 Q55 10 50 80Z" fill="${Y}" stroke="${IN}" stroke-width="6"/>
+      <circle cx="0" cy="-40" r="48" fill="#FFD6B8" stroke="${IN}" stroke-width="6"/><path d="M-48 -50 Q0 -110 48 -50 Q20 -70 -48 -50Z" fill="#3B2A20"/>
+      <circle cx="-16" cy="-40" r="6" fill="${IN}"/><circle cx="16" cy="-40" r="6" fill="${IN}"/><path d="M-14 -20 Q0 -6 14 -20" fill="none" stroke="${IN}" stroke-width="5" stroke-linecap="round"/>
+      <line x1="-45" y1="20" x2="-90" y2="-60" stroke="#FFD6B8" stroke-width="16" stroke-linecap="round"/><line x1="45" y1="20" x2="90" y2="-60" stroke="#FFD6B8" stroke-width="16" stroke-linecap="round"/></g></g>`, "left:0;top:0");
+  const balls = Array.from({ length: 5 }, (_, i) => svgEl(L2, 120, 120, `<circle cx="60" cy="60" r="52" fill="${rb[i]}" stroke="${IN}" stroke-width="6"/><path d="M14 46 Q60 80 106 46" fill="none" stroke="#fff" stroke-width="10" opacity=".8"/><circle cx="40" cy="36" r="10" fill="#fff" opacity=".7"/>`, "left:0;top:0"));
+  const ICON = ["🎤", "💬", "💡", "🎨", "🗣️", "🎮"];
+  const bub = ICON.map((ic, i) => {
+    const b = el("div", { class: "abs", style: "left:0;top:0;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.75), rgba(170,210,255,.25) 40%, rgba(255,184,222,.18) 75%);border:4px solid rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center" }, L2);
+    el("div", { class: "emo", style: "font-size:84px" }, b, ic); return b;
+  });
+  on(t => {
+    if (g.style.display === "none") return;
+    swing.querySelector("#sw").setAttribute("transform", `translate(540,340) rotate(${Math.sin(t * 1.9) * 24})`);
+    balls.forEach((b, i) => { const ph = (t * (.45 + i * .07) + i * .23) % 1, x = 120 + ((t * (60 + i * 25) + i * 210) % 840), y = 1060 - Math.abs(Math.sin(ph * Math.PI)) * (300 + i * 40);
+      tf(b, `translate(${x - 60}px,${y - 60}px) rotate(${t * 140 + i * 50}deg) scale(${1 - .15 * (1 - Math.abs(Math.sin(ph * Math.PI))) * (y > 1040)},1)`); });
+    bub.forEach((b, i) => { const ph = (t * .11 + i / ICON.length) % 1, x = 140 + i * 160 + Math.sin(t * 1.3 + i) * 40, y = 1100 - ph * 900;
+      tf(b, `translate(${x - 85}px,${y - 85}px) scale(${(.6 + .4 * Math.sin(ph * Math.PI)) * (1 + Math.sin(t * 4 + i) * .04)},${(.6 + .4 * Math.sin(ph * Math.PI)) * (1 - Math.sin(t * 4 + i) * .04)})`);
+      b.style.opacity = Math.min(1, Math.sin(ph * Math.PI) * 2); });
+  });
+}
+
+/* ---------- Island 4 : warm safety shield ---------- */
+function housePts() { // outline used for the gather effect
+  const pts = [], seg = [[300, 1060, 300, 760], [300, 760, 540, 560], [540, 560, 780, 760], [780, 760, 780, 1060], [780, 1060, 300, 1060]];
+  seg.forEach(([a, b, c, d]) => { for (let i = 0; i < 10; i++) pts.push([lerp(a, c, i / 10), lerp(b, d, i / 10)]); });
+  return pts;
+}
+function island4() {
+  const l = LV[3], g = island(4); visibleGroup(g, 4, l.S - 3, l.next + .5);
+  const gather = l.S + .2, built = l.S + 3.2;
+  // gathering clouds & stars -> house outline
+  const pts = housePts();
+  const parts = svgEl(g, 1080, 1920, pts.map((_, i) => i % 3 ? `<path class="gp" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5Z" fill="${i % 2 ? Y : "#fff"}"/>` : `<g class="gp">${cloudPuffs(0, 0, 90, "#E9F4FF")}</g>`).join(""), "left:0;top:0");
+  const L0 = layer(g, built - .4, 0), L1 = layer(g, built - .4, 1), L2 = layer(g, built - .4, 2);
+  svgEl(L0, 1080, 1920, `${cloudPuffs(540, 1100, 900, "#E9F4FF", .9)}<ellipse cx="540" cy="760" rx="470" ry="470" fill="${PK}" opacity=".12"/>
+    <path d="M70 1080 A 470 470 0 0 1 1010 1080" fill="none" stroke="${PK}" stroke-width="6" stroke-dasharray="14 18" opacity=".7"/>`, "left:0;top:0");
+  const house = svgEl(L1, 1080, 1920, `<defs><linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BEE6FF"/><stop offset="1" stop-color="#7CC4FF"/></linearGradient>
+    <radialGradient id="hglow2"><stop offset="0" stop-color="${Y}" stop-opacity=".55"/><stop offset="1" stop-color="${Y}" stop-opacity="0"/></radialGradient></defs>
+    <circle cx="540" cy="820" r="420" fill="url(#hglow2)" id="hg2"/>
+    <rect x="650" y="600" width="70" height="140" fill="#FF9F45" stroke="${IN}" stroke-width="6"/>
+    <rect x="320" y="760" width="440" height="300" rx="16" fill="url(#wall)" stroke="${IN}" stroke-width="7"/>
+    <path d="M270 780 L540 560 L810 780Z" fill="${Y}" stroke="${IN}" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M490 1060 V940 Q540 890 590 940 V1060Z" fill="#FF8FB8" stroke="${IN}" stroke-width="6"/><circle cx="572" cy="1000" r="7" fill="${IN}"/>
+    ${[[360, 820], [640, 820]].map(([x, y]) => `<rect class="win" x="${x}" y="${y}" width="90" height="80" rx="10" stroke="${IN}" stroke-width="6"/><line x1="${x + 45}" y1="${y}" x2="${x + 45}" y2="${y + 80}" stroke="${IN}" stroke-width="4"/><line x1="${x}" y1="${y + 40}" x2="${x + 90}" y2="${y + 40}" stroke="${IN}" stroke-width="4"/>`).join("")}
+    <g id="smk">${[0, 1, 2].map(() => `<path d="M0 12 C -18 0, -18 -16, -8 -16 C -2 -16, 0 -10, 0 -8 C 0 -10, 2 -16, 8 -16 C 18 -16, 18 0, 0 12Z" fill="${PK}"/>`).join("")}</g>`, "left:0;top:0");
+  // family hug
+  const person = (x, s, shirt, hair, i) => `<g class="pp" data-x="${x}" data-s="${s}" data-i="${i}"><path d="M-50 140 Q-55 30 0 20 Q55 30 50 140Z" fill="${shirt}" stroke="${IN}" stroke-width="6"/>
+    <circle cx="0" cy="-30" r="46" fill="#FFD6B8" stroke="${IN}" stroke-width="6"/><path d="M-46 -40 Q0 -100 46 -40 Q20 -66 -46 -40Z" fill="${hair}" stroke="${IN}" stroke-width="4"/>
+    <circle cx="-15" cy="-30" r="6" fill="${IN}"/><circle cx="15" cy="-30" r="6" fill="${IN}"/><path d="M-14 -10 Q0 4 14 -10" fill="none" stroke="${IN}" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="-28" cy="-14" r="7" fill="${PK}"/><circle cx="28" cy="-14" r="7" fill="${PK}"/></g>`;
+  const fam = svgEl(L2, 1080, 1920, `<g id="fam" transform="translate(0,1080)">
+    <path d="M260 -40 Q540 -150 820 -40" fill="none" stroke="#FFD6B8" stroke-width="20" stroke-linecap="round"/>
+    ${person(300, 1.15, BL, "#3B2A20", 0)}${person(780, 1.1, "#B28DFF", "#6B3E26", 1)}${person(450, .78, PK, "#3B2A20", 2)}${person(630, .72, MI, "#C8803E", 3)}
+    <path d="M300 30 Q450 -10 600 40 M780 30 Q640 -10 480 40" fill="none" stroke="#FFD6B8" stroke-width="18" stroke-linecap="round"/></g>`, "left:0;top:0");
+  const hearts = Array.from({ length: 16 }, () => el("div", { class: "abs emo", style: "left:0;top:0;font-size:70px" }, L2, "💗"));
+  on(t => {
+    if (g.style.display === "none") return;
+    const gk = E.io(prog(t, gather, built));
+    parts.querySelectorAll(".gp").forEach((p, i) => {
+      const sx = hash(i, 9) * 1080, sy = hash(i, 8) * 1920, [tx, ty] = pts[i];
+      p.setAttribute("transform", `translate(${lerp(sx, tx, gk) + Math.sin(t * 2 + i) * 10 * (1 - gk)},${lerp(sy, ty, gk)}) rotate(${t * 40 * (i % 2 ? 1 : -1)}) scale(${.6 + .6 * (1 - gk)})`);
+    });
+    parts.style.opacity = prog(t, gather - .3, gather + .3) * (1 - prog(t, built, built + .8));
+    house.querySelectorAll(".win").forEach((w, i) => w.setAttribute("fill", `rgba(255,225,77,${.75 + .25 * Math.sin(t * 2 + i)})`));
+    house.querySelector("#hg2").setAttribute("opacity", .7 + .3 * Math.sin(t * 1.5));
+    [...house.querySelector("#smk").children].forEach((s, i) => { const ph = (t * .4 + i / 3) % 1;
+      s.setAttribute("transform", `translate(${685 + Math.sin(ph * 6 + i) * 18},${590 - ph * 220}) scale(${1 + ph * 1.6})`); s.setAttribute("opacity", 1 - ph); });
+    fam.querySelectorAll(".pp").forEach(p => { const x = +p.dataset.x, s = +p.dataset.s, i = +p.dataset.i;
+      p.setAttribute("transform", `translate(${x},${-140 * s + Math.sin(t * 2.2 + i) * 4}) scale(${s}) rotate(${Math.sin(t * 1.6 + i) * 3})`); });
+    hearts.forEach((h, i) => { const a = t * .5 + i / 16 * 6.283, x = 540 + Math.cos(a) * 470, y = 800 + Math.sin(a) * 300;
+      tf(h, `translate(${x - 35}px,${y - 35}px) scale(${.75 + .3 * Math.sin(a) + .08 * Math.sin(t * 5 + i)})`); h.style.zIndex = Math.sin(a) > 0 ? 5 : 0;
+      h.style.opacity = prog(t, built + .4 + i * .08, built + .8 + i * .08) * (.55 + .45 * Math.sin(a) * .5 + .25); });
+  });
+}
+
+/* ---------- Map: path + level nodes (seen when zoomed out) ---------- */
+const NODES = [{ e: "🚀", n: "الانطلاق" }, { e: "📚", n: "قلعة المعرفة" }, { e: "🍏", n: "واحة الطاقة" }, { e: "🎈", n: "أرض المرح" }, { e: "🏠", n: "درع الأمان" }];
+const UNLOCK = [0, ST.unlock1, LV[0].complete + 1, LV[1].complete + 1, LV[2].complete + 1];
+const DONE = [ST.dive, LV[0].complete + 1, LV[1].complete + 1, LV[2].complete + 1, LV[3].complete + 1];
+function buildMap() {
+  const segs = [];
+  for (let k = 0; k < 4; k++) segs.push(`M${I[k][0]} ${I[k][1]} L${I[k + 1][0]} ${I[k + 1][1]}`);
+  const m = svgEl(world, 4400, 4600, `${segs.map(d => `<path d="${d}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="40" stroke-dasharray="60 70" stroke-linecap="round"/>`).join("")}
+    ${segs.map((d, i) => `<path class="lit" d="${d}" pathLength="1" fill="none" stroke="${Y}" stroke-width="54" stroke-linecap="round" stroke-dasharray="1" stroke-dashoffset="1" style="filter:drop-shadow(0 0 30px ${Y})"/>`).join("")}`, "left:0;top:0");
+  const lit = [...m.querySelectorAll(".lit")];
+  const nodes = NODES.map((nd, k) => {
+    const d = el("div", { class: "abs", style: `left:${I[k][0]}px;top:${I[k][1]}px;width:0;height:0` }, world);
+    const c = el("div", { class: "abs", style: "left:-280px;top:-280px;width:560px;height:560px;border-radius:50%;border:26px solid #FFE14D;background:radial-gradient(circle at 40% 35%, #7A5CFF, #2A1A78);box-shadow:0 0 120px rgba(255,225,77,.6), 0 40px 0 #160C50;display:flex;align-items:center;justify-content:center" }, d);
+    const em = el("div", { class: "emo", style: "font-size:280px" }, c, nd.e);
+    const lock = el("div", { class: "abs emo", style: "left:150px;top:150px;font-size:200px" }, d, "🔒");
+    const lab = el("div", { class: "abs game", style: "left:0;top:-480px;transform:translateX(-50%);font-size:190px;white-space:nowrap;color:#fff;text-shadow:0 12px 0 #2A1A78, 0 0 40px rgba(255,184,222,.8)" }, d, nd.n);
+    const chk = el("div", { class: "abs emo", style: "left:-420px;top:120px;font-size:220px" }, d, "⭐");
+    return { d, c, em, lock, lab, chk };
+  });
+  on((t, cam) => {
+    const zv = 1 - prog(cam.z, .4, .7);
+    m.style.opacity = zv; m.style.display = zv > 0 ? "block" : "none";
+    lit.forEach((p, k) => p.setAttribute("stroke-dashoffset", 1 - E.io(prog(t, UNLOCK[k + 1], UNLOCK[k + 1] + 1.5))));
+    nodes.forEach((n, k) => {
+      const appear = t < P.win - 6 ? (k === 0 ? 1 : popScale(t, ST.mapNodes[k - 1], .7)) : 1;
+      n.d.style.display = zv > 0 ? "block" : "none"; n.d.style.opacity = zv;
+      tf(n.c, `scale(${appear * (1 + .04 * Math.sin(t * 3 + k))})`);
+      tf(n.lab, `translateX(-50%) scale(${appear})`);
+      const unl = t >= UNLOCK[k];
+      const shake = !unl ? 0 : Math.sin((t - UNLOCK[k]) * 40) * 18 * (1 - prog(t, UNLOCK[k], UNLOCK[k] + .6));
+      n.lock.textContent = unl ? "🔓" : "🔒";
+      n.lock.style.opacity = appear * (1 - prog(t, UNLOCK[k] + .8, UNLOCK[k] + 1.6)) * (k === 0 ? 0 : 1);
+      tf(n.lock, `rotate(${shake}deg) scale(${appear})`);
+      n.c.style.filter = unl || k === 0 ? "none" : "grayscale(.85) brightness(.75)";
+      const done = t >= DONE[k] && k > 0;
+      n.chk.style.opacity = done ? 1 : 0; tf(n.chk, `scale(${done ? popScale(t, Math.max(DONE[k], P.win - 3) + k * .2, .6) : 0}) rotate(${t * 30}deg)`);
+    });
+  });
+}
+
+/* =========================== OVERLAY =========================== */
+const ov = $("#ov"), ov2 = $("#ov2");
+
+/* ---------- balloons (3D-ish, blue & light pink) ---------- */
+function balloons(t0, t1, n, seed) {
+  const box = el("div", { class: "abs", style: "inset:0" }, ov);
+  const bs = Array.from({ length: n }, (_, i) => {
+    const c = i % 2 ? ["#FFE0F0", "#FFB8DE", "#E77DB4"] : ["#D6ECFF", "#5AB4FF", "#2F7FD0"];
+    const z = .45 + hash(i, seed) * .75;
+    const b = svgEl(box, 200, 380, `<defs><radialGradient id="bg${seed}_${i}" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="${c[0]}"/><stop offset=".45" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></radialGradient></defs>
+      <path d="M100 250 C 95 290, 115 320, 98 370" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="3"/>
+      <ellipse cx="100" cy="125" rx="88" ry="110" fill="url(#bg${seed}_${i})"/><path d="M90 236 L110 236 L100 252Z" fill="${c[2]}"/>
+      <ellipse cx="68" cy="78" rx="18" ry="30" fill="#fff" opacity=".55" transform="rotate(-25 68 78)"/>`, "left:0;top:0");
+    return { b, z, x: hash(i, seed + 1) * 1000 - 40, sp: 110 + hash(i, seed + 2) * 90, ph: hash(i, seed + 3) * 6.28, off: hash(i, seed + 4) * 2400 };
+  });
+  bs.sort((a, b) => a.z - b.z).forEach(o => box.appendChild(o.b));
+  on(t => {
+    const v = win(t, t0, t1, .3, 1.5);
+    box.style.display = v > 0 ? "block" : "none"; if (!v) return;
+    bs.forEach(o => {
+      const yy = 2050 - (((t - t0) * o.sp * o.z + (o.off % 900)) % 2500);
+      tf(o.b, `translate(${o.x + Math.sin(t * .9 + o.ph) * 40}px,${yy}px) scale(${o.z}) rotate(${Math.sin(t * 1.2 + o.ph) * 8}deg)`);
+      o.b.style.opacity = v * (.55 + .45 * o.z);
+    });
+  });
+}
+
+/* ---------- dynamic titles: 3D pop-up cards ---------- */
+function titleCard(lines, tIn, tDock, tOut, dockY = 352, dockS = .58) {
+  const c = el("div", { class: "card3d" }, ov);
+  lines.forEach(([txt, size, cls]) => el("div", { class: `game ${cls || ""}`, style: `font-size:${size}px;line-height:1.2` }, c, txt));
+  on(t => {
+    const k = prog(t, tIn, tIn + .9), d = E.io(prog(t, tDock, tDock + 1)), o = prog(t, tOut, tOut + .6);
+    const v = clamp(k * 3) * (1 - o);
+    op(c, v); if (!v) return;
+    const y = lerp(820, dockY, d), s = lerp(1, dockS, d) * (1 - o * .4);
+    tf(c, `translate(-50%,-50%) translateY(${y}px) perspective(1200px) rotateX(${(1 - E.back(k)) * -85 + o * 70}deg) scale(${s * lerp(.6, 1, E.out(k))})`);
+    c.style.top = "0px";
+  });
+  return c;
+}
+
+/* ---------- start button ---------- */
+function startButton() {
+  const b = el("div", { class: "abs game", style: "left:540px;top:1420px;padding:26px 80px 34px;border-radius:999px;font-size:92px;color:#1B1450;white-space:nowrap;background:linear-gradient(180deg,#FFF39A,#FFD21F);border:7px solid #fff;box-shadow:0 16px 0 #C77A00, 0 0 70px rgba(255,225,77,.8)" }, ov, "▶ ابدأ الرحلة");
+  const ring = el("div", { class: "abs", style: "left:540px;top:1420px;width:560px;height:200px;border-radius:999px;border:8px solid #FFB8DE" }, ov);
+  const hand = el("div", { class: "abs emo", style: "left:0;top:0;font-size:150px" }, ov, "👆");
+  on(t => {
+    const k = prog(t, ST.button, ST.button + .6), gone = prog(t, ST.press + .35, ST.press + .8);
+    const press = t > ST.press - .05 && t < ST.press + .2 ? .86 : 1;
+    op(b, clamp(k * 3) * (1 - gone));
+    tf(b, `translate(-50%,-50%) scale(${E.back(k) * press * (1 + Math.sin(t * 7) * .03) * (1 + gone * .6)})`);
+    const rk = prog(t, ST.press, ST.press + .8);
+    op(ring, rk > 0 && rk < 1 ? 1 - rk : 0); tf(ring, `translate(-50%,-50%) scale(${1 + rk * .9})`);
+    const hin = E.io(prog(t, ST.button + .4, ST.press - .1)), hout = E.io(prog(t, ST.press + .2, ST.press + .8));
+    op(hand, hin * (1 - hout));
+    tf(hand, `translate(${lerp(820, 590, hin) + hout * 200}px,${lerp(1800, 1440, hin) + hout * 300 + (press < 1 ? 16 : 0)}px)`);
+  });
+}
+
+/* ---------- HUD: level pill, score, badge slots ---------- */
+const SLOTS = ["📚", "🍏", "🎈", "🏠"];
+const scoreEvents = [];
+function buildScore() {
+  TL.chunks.forEach(c => c.words.forEach(w => scoreEvents.push([w.t, 10])));
+  LV.forEach(l => { l.items.forEach(it => scoreEvents.push([it + l.collectDelay + .5, 100])); scoreEvents.push([l.complete + 1.2, 500]); });
+  scoreEvents.sort((a, b) => a[0] - b[0]);
+}
+function scoreAt(t) { let s = 0, last = -9; for (const [tm, v] of scoreEvents) { if (tm > t) break; s += v; last = tm; } return [s, last]; }
+function hud() {
+  const h = el("div", { id: "hud" }, ov2);
+  const lvl = el("div", { class: "abs game", style: "right:56px;top:178px;padding:6px 34px 12px;border-radius:999px;font-size:50px;background:linear-gradient(180deg,#8B6CFF,#4B32C8);border:5px solid #fff;box-shadow:0 8px 0 #22137A;white-space:nowrap" }, h);
+  const sc = el("div", { class: "abs game", style: "left:56px;top:178px;padding:6px 30px 12px;border-radius:999px;font-size:50px;color:#1B1450;background:linear-gradient(180deg,#FFF39A,#FFD21F);border:5px solid #fff;box-shadow:0 8px 0 #C77A00;white-space:nowrap;direction:ltr" }, h);
+  const slots = SLOTS.map((s, i) => { const d = el("div", { class: "slot emo", style: `left:${540 - 2 * 122 + i * 122 + 61 - 52}px;top:286px` }, h, s); return d; });
+  // RTL ordering: level 1 on the right
+  slots.forEach((d, i) => d.style.left = (540 + 183 - i * 122 - 52) + "px");
+  on(t => {
+    const v = prog(t, ST.dock, ST.dock + .6) * (1 - prog(t, P.final - .5, P.final + .5));
+    op(h, v); if (!v) return;
+    let name = "🚀 الانطلاق";
+    LV.forEach(l => { if (t >= l.S - 2) name = `🎮 المستوى ${l.n}`; });
+    if (t >= ST.mapIn && t < LV[0].S - 2) name = "🗺️ الخريطة";
+    if (t >= P.win - 2) name = "🏆 الفوز!";
+    if (lvl._n !== name) { lvl.textContent = name; lvl._n = name; }
+    const [s, last] = scoreAt(t);
+    const txt = "⭐ " + s.toLocaleString("en-US");
+    if (sc._n !== txt) { sc.textContent = txt; sc._n = txt; }
+    tf(sc, `scale(${1 + .12 * (1 - prog(t, last, last + .25))})`);
+    slots.forEach((d, i) => {
+      const got = LV[i].complete + 5.4, k = prog(t, got, got + .5);
+      d.style.filter = k > 0 ? "none" : "grayscale(1) brightness(.6)";
+      d.style.borderColor = k > 0 ? Y : "rgba(255,255,255,.35)";
+      d.style.boxShadow = k > 0 ? `0 0 ${30 + 10 * Math.sin(t * 4)}px rgba(255,225,77,.8)` : "none";
+      tf(d, `scale(${k > 0 ? E.el(k) : 1})`);
+    });
+  });
+}
+
+/* ---------- the guide (girl avatar) with lip-sync ---------- */
+function speakingAt(t) {
+  for (const c of TL.chunks) { if (t < c.start - .05 || t > c.end + .05) continue;
+    for (const w of c.words) if (t >= w.t && t <= w.t + w.d) return (t - w.t); }
+  return -1;
+}
+function guide() {
+  const g = svgEl(ov2, 220, 260, `<defs><radialGradient id="gbg" cx="50%" cy="40%"><stop offset="0" stop-color="#FFD3EA"/><stop offset="1" stop-color="#7B9BFF"/></radialGradient></defs>
+    <circle cx="110" cy="110" r="104" fill="url(#gbg)" stroke="${Y}" stroke-width="9"/>
+    <g id="head" transform="translate(110,122)">
+      <circle cx="-74" cy="-14" r="26" fill="#4A2A1A"/><circle cx="74" cy="-14" r="26" fill="#4A2A1A"/>
+      <path d="M-92 -30 l-18 -14 l6 26z M92 -30 l18 -14 l-6 26z" fill="${PK}" stroke="${IN}" stroke-width="3"/>
+      <circle cx="0" cy="0" r="66" fill="#FFD9BF" stroke="${IN}" stroke-width="5"/>
+      <path d="M-66 -6 Q-70 -76 0 -76 Q70 -76 66 -6 Q52 -44 20 -48 Q8 -30 -20 -46 Q-50 -40 -66 -6Z" fill="#4A2A1A" stroke="${IN}" stroke-width="4"/>
+      <g id="eyes"><ellipse cx="-24" cy="2" rx="11" ry="14" fill="${IN}"/><ellipse cx="24" cy="2" rx="11" ry="14" fill="${IN}"/><circle cx="-20" cy="-3" r="4" fill="#fff"/><circle cx="28" cy="-3" r="4" fill="#fff"/></g>
+      <circle cx="-42" cy="22" r="11" fill="${PK}" opacity=".9"/><circle cx="42" cy="22" r="11" fill="${PK}" opacity=".9"/>
+      <ellipse id="mouth" cx="0" cy="34" rx="15" ry="5" fill="#B0305A" stroke="${IN}" stroke-width="4"/>
+      <path d="M-66 -8 Q-72 -70 0 -82 Q72 -70 66 -8" fill="none" stroke="${BL}" stroke-width="9"/>
+      <rect x="-80" y="-24" width="22" height="40" rx="10" fill="${BL}" stroke="${IN}" stroke-width="4"/><rect x="58" y="-24" width="22" height="40" rx="10" fill="${BL}" stroke="${IN}" stroke-width="4"/>
+      <path d="M-70 14 Q-60 46 -22 44" fill="none" stroke="${IN}" stroke-width="4"/><circle cx="-20" cy="44" r="7" fill="${Y}" stroke="${IN}" stroke-width="3"/>
+      <path d="M0 -78 l5 12 l13 1 l-10 8 l4 13 l-12 -7 l-12 7 l4 -13 l-10 -8 l13 -1z" fill="${Y}" stroke="${IN}" stroke-width="2"/>
+    </g>
+    <rect x="30" y="206" width="160" height="50" rx="25" fill="${Y}" stroke="${IN}" stroke-width="5"/>
+    <text x="110" y="244" text-anchor="middle" font-family="Lalezar" font-size="34" fill="${IN}">القائدة</text>`, "left:34px;top:1100px");
+  g.id = "guide";
+  on(t => {
+    const v = dialogVis(t);
+    op(g, v); if (!v) return;
+    const sp = speakingAt(t);
+    const open = sp >= 0 ? .25 + .75 * Math.abs(Math.sin(sp * Math.PI * 6.5)) : 0;
+    const m = g.querySelector("#mouth"); m.setAttribute("ry", 4 + open * 14); m.setAttribute("rx", 15 - open * 3);
+    const bl = (t % 3.3) < .12 ? .12 : 1; g.querySelector("#eyes").setAttribute("transform", `translate(0,${(1 - bl) * 2}) scale(1,${bl})`);
+    g.querySelector("#head").setAttribute("transform", `translate(110,${122 + (sp >= 0 ? Math.sin(t * 9) * 2.5 : Math.sin(t * 2) * 2)}) rotate(${Math.sin(t * 1.3) * 4})`);
+    tf(g, `translateY(${(1 - E.back(v)) * 200}px)`);
+  });
+}
+
+/* ---------- kinetic "reward point" words (dialog box) ---------- */
+const WINDOWS = [[ST.narrStart, TL.levels.L0.end], ...LV.map(l => [l.narrStart, l.narrEnd]), [P.winNarr, TL.levels.WIN.end]];
+function dialogVis(t) { let v = 0; WINDOWS.forEach(([a, b]) => { v = Math.max(v, win(t, a - .7, b + 1.4, .45, .5)); }); return v; }
+const PAGES = [];
+(function paginate() {
+  TL.chunks.forEach(c => {
+    const ws = c.words, n = ws.length, per = n <= 7 ? n : Math.ceil(n / Math.ceil(n / 7));
+    for (let i = 0; i < n; i += per) PAGES.push({ words: ws.slice(i, i + per), base: i, start: ws[i].t, end: ws[Math.min(n, i + per) - 1].t + ws[Math.min(n, i + per) - 1].d });
+  });
+})();
+function dialog() {
+  const d = el("div", { id: "dlg" }, ov2), box = el("div", { id: "dlgWords" }, d);
+  let cur = -1, toks = [];
+  on(t => {
+    const v = dialogVis(t);
+    op(d, v); if (!v) return;
+    tf(d, `translateY(${(1 - E.out(v)) * 260}px)`);
+    let pi = -1; PAGES.forEach((p, i) => { if (t >= p.start - .25) pi = i; });
+    if (pi < 0) return;
+    if (pi !== cur) {
+      cur = pi; box.innerHTML = ""; const pg = PAGES[pi];
+      toks = pg.words.map((w, j) => { const s = el("span", { class: "tok" }, box, w.w); const p = el("span", { class: "pts" }, s, "+10"); s.pts = p; s.w = w; s.col = (pg.base + j) % 2 ? PK : Y; return s; });
+    }
+    const pg = PAGES[cur];
+    const pageFade = 1 - prog(t, pg.end + .9, pg.end + 1.3);
+    toks.forEach(s => {
+      const w = s.w, k = prog(t, w.t - .05, w.t + .35), live = t >= w.t - .05 && t <= w.t + w.d + .1;
+      s.style.opacity = clamp(k * 3) * pageFade;
+      const sc = k <= 0 ? .3 : E.back(k) * (live ? 1.14 : 1);
+      tf(s, `scale(${sc}) rotate(${(1 - E.out(k)) * -18}deg)`);
+      s.style.color = live ? "#FFFFFF" : s.col;
+      s.style.textShadow = live ? `0 0 18px ${s.col}, 0 0 40px ${s.col}, 0 4px 0 #5B2A86` : `0 0 14px ${s.col}88, 0 4px 0 #3A1E7A`;
+      const pk = prog(t, w.t, w.t + .8);
+      s.pts.style.opacity = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
+      tf(s.pts, `translate(-50%, ${-pk * 50}px) scale(${.6 + pk * .5})`);
+    });
+  });
+}
+
+/* ---------- missions (collect 4 items per level) ---------- */
+const MISSIONS = [
+  { title: "🎯 المهمة: اجمع كتب المعرفة", bag: "🎒", items: [["🪐", "أسرار الفضاء"], ["💻", "التكنولوجيا"], ["🔬", "علماء ومخترعون"], ["📖", "القراءة قوة"]] },
+  { title: "🎯 المهمة: اشحن طاقتك", bag: "🔋", items: [["🥕", "طعام صحي"], ["🍓", "طعام ممتع"], ["🩺", "أطباء طيبون"], ["💊", "دواء فوراً"]] },
+  { title: "🎯 المهمة: اجمع فقاعات الأفكار", bag: "🎁", items: [["⚽", "نلعب ونركض"], ["🎨", "نرسم ونبتكر"], ["🎤", "نقول رأينا"], ["👂", "الكبار يستمعون"]] },
+  { title: "🎯 المهمة: ابنِ درع الأمان", bag: "🛡️", items: [["🏡", "بيت دافئ"], ["❤️", "الحب"], ["🤗", "الاهتمام"], ["🕊️", "سلام وثقة"]] },
+];
+function mission(li) {
+  const l = LV[li], M = MISSIONS[li], cd = l.collectDelay;
+  const box = el("div", { class: "abs", style: "inset:0" }, ov);
+  const head = el("div", { class: "abs chip game", style: "left:540px;top:1240px;font-size:54px;color:#1B1450;background:linear-gradient(180deg,#FFF39A,#FFD21F);border:5px solid #fff;box-shadow:0 10px 0 #C77A00" }, box, M.title);
+  const barW = 560;
+  const bagBox = el("div", { class: "abs", style: "left:540px;top:1400px;width:760px;height:150px;border-radius:40px;background:rgba(27,20,80,.85);border:5px solid rgba(255,255,255,.6)" }, box);
+  const bag = el("div", { class: "abs emo", style: "right:28px;top:22px;font-size:100px" }, bagBox, M.bag);
+  el("div", { class: "abs", style: `left:40px;top:52px;width:${barW}px;height:46px;border-radius:23px;background:rgba(255,255,255,.18)` }, bagBox);
+  const fill = el("div", { class: "abs", style: "left:40px;top:52px;height:46px;border-radius:23px;background:linear-gradient(90deg,#FFB8DE,#FFE14D);box-shadow:0 0 22px rgba(255,225,77,.8)" }, bagBox);
+  const cnt = el("div", { class: "abs game", style: "left:250px;top:44px;font-size:46px;color:#fff;text-shadow:0 3px 0 #1B1450;direction:ltr" }, bagBox, "0/4");
+  const its = M.items.map(([e, lab], i) => {
+    const d = el("div", { class: "abs", style: "left:0;top:0;width:0;height:0" }, box);
+    const card = el("div", { class: "abs", style: "left:-150px;top:-150px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.95),rgba(255,184,222,.6) 55%,rgba(255,225,77,.25));border:7px solid #FFE14D;box-shadow:0 0 60px rgba(255,225,77,.7);display:flex;align-items:center;justify-content:center" }, d);
+    el("div", { class: "emo", style: "font-size:160px" }, card, e);
+    const lb = el("div", { class: "abs chip game", style: "left:0;top:190px;font-size:56px;color:#fff;background:linear-gradient(180deg,#FF8FC8,#E2559B);border:5px solid #fff;box-shadow:0 8px 0 #9C2E6A" }, d, lab);
+    const coin = el("div", { class: "abs game", style: "left:0;top:0;font-size:70px;color:#FFE14D;text-shadow:0 5px 0 #5B2A86;white-space:nowrap;direction:ltr" }, box, "+100 ⭐");
+    return { d, card, lb, coin, t0: l.items[i] };
+  });
+  on(t => {
+    const v = win(t, l.mission - .2, l.complete + .3, .5, .5);
+    box.style.display = v > 0 ? "block" : "none"; if (!v) return;
+    op(head, v); tf(head, `translate(-50%,-50%) scale(${popScale(t, l.mission, .6)})`);
+    op(bagBox, v); tf(bagBox, `translate(-50%,-50%) scale(${popScale(t, l.mission + .3, .6)})`);
+    let got = 0; its.forEach(o => { if (t >= o.t0 + cd + .5) got++; });
+    const gp = its.reduce((s, o) => s + E.out(prog(t, o.t0 + cd + .5, o.t0 + cd + 1.1)), 0);
+    fill.style.width = (barW * gp / 4) + "px";
+    cnt.textContent = `${got}/4`;
+    tf(bag, `scale(${1 + .25 * its.reduce((m, o) => Math.max(m, 1 - prog(t, o.t0 + cd + .5, o.t0 + cd + .9)) * (t >= o.t0 + cd + .5), 0)}) rotate(${Math.sin(t * 3) * 6}deg)`);
+    its.forEach((o, i) => {
+      const a = popScale(t, o.t0, .7), f = E.io(prog(t, o.t0 + cd, o.t0 + cd + .6));
+      const sx = 540, sy = 780, ex = 540 + 380 - 80, ey = 1400;
+      const x = lerp(sx, ex, f), y = lerp(sy, ey, f) - Math.sin(f * Math.PI) * 260;
+      o.d.style.display = t >= o.t0 && f < 1 ? "block" : "none";
+      tf(o.d, `translate(${x}px,${y + Math.sin(t * 2.5) * 12 * (1 - f)}px) perspective(1000px) rotateY(${(1 - a) * 90}deg) scale(${a * lerp(1, .25, f)})`);
+      op(o.lb, 1 - prog(f, 0, .3)); tf(o.lb, `translateX(-50%) scale(${popScale(t, o.t0 + .35, .5)})`);
+      const ck = prog(t, o.t0 + cd + .5, o.t0 + cd + 1.5);
+      op(o.coin, ck > 0 && ck < 1 ? Math.sin(ck * Math.PI) : 0);
+      tf(o.coin, `translate(${ex - 100}px,${ey - 180 - ck * 120}px) scale(${.7 + ck * .5})`);
+    });
+  });
+}
+
+/* ---------- level complete banner ---------- */
+function complete(li) {
+  const l = LV[li], c = l.complete;
+  const b = el("div", { class: "card3d", style: "padding:40px 60px 46px" }, ov);
+  el("div", { class: "game gtext", style: "font-size:118px;line-height:1.1" }, b, "أحسنت يا بطل!");
+  const st = el("div", { style: "display:flex;justify-content:center;gap:24px;margin:18px 0 8px" }, b);
+  const sts = [0, 1, 2].map(() => el("div", { class: "emo", style: "font-size:120px" }, st, "⭐"));
+  el("div", { class: "game", style: "font-size:58px;color:#fff" }, b, `🔓 تم فتح: ${l.right}`);
+  const bonus = el("div", { class: "game", style: "font-size:64px;color:#FFE14D;direction:ltr;margin-top:6px" }, b, "+500 ⭐");
+  const fly = el("div", { class: "abs emo", style: "left:0;top:0;font-size:130px" }, ov, SLOTS[li]);
+  on(t => {
+    const k = prog(t, c, c + .8), o = prog(t, c + 6.2, c + 6.8), v = clamp(k * 3) * (1 - o);
+    op(b, v); if (!v) { op(fly, 0); } else {
+      tf(b, `translate(-50%,-50%) translateY(820px) perspective(1300px) rotateX(${(1 - E.back(k)) * -80}deg) scale(${(1 - o * .5)})`); b.style.top = "0";
+      sts.forEach((s, i) => tf(s, `scale(${popScale(t, c + .6 + i * .25, .5)}) rotate(${(1 - popScale(t, c + .6 + i * .25, .5)) * 180}deg)`));
+      tf(bonus, `scale(${popScale(t, c + 1.2, .5)})`);
+    }
+    const fk = E.io(prog(t, c + 4.6, c + 5.4));
+    const tx = 540 + 183 - li * 122, ty = 338;
+    op(fly, fk > 0 && fk < 1 ? 1 : 0);
+    tf(fly, `translate(${lerp(540, tx, fk) - 65}px,${lerp(900, ty, fk) - 65 - Math.sin(fk * Math.PI) * 200}px) scale(${lerp(1.4, .45, fk)}) rotate(${fk * 360}deg)`);
+  });
+}
+
+/* ---------- transition overlays ---------- */
+function speedLines(t0, t1) {
+  const c = svgEl(ov, 1080, 1920, Array.from({ length: 34 }, (_, i) => `<rect class="sl" x="${hash(i, 4) * 1080}" width="${2 + hash(i, 5) * 6}" height="${200 + hash(i, 6) * 500}" rx="3" fill="${i % 3 ? "#fff" : Y}"/>`).join(""), "left:0;top:0");
+  on(t => {
+    const k = prog(t, t0, t1), v = Math.sin(k * Math.PI);
+    op(c, k > 0 && k < 1 ? v * .8 : 0); if (!(k > 0 && k < 1)) return;
+    c.querySelectorAll(".sl").forEach((r, i) => r.setAttribute("y", ((hash(i, 7) * 2600 - k * 5200 * (1 + hash(i, 8))) % 2600 + 2600) % 2600 - 600));
+  });
+}
+function cloudWipe(t0, t1) {
+  const c = svgEl(ov, 1080, 2600, `${cloudPuffs(540, 520, 1400, "#FFFFFF")}${cloudPuffs(300, 900, 1100, "#F1EEFF")}${cloudPuffs(800, 1250, 1200, "#FFFFFF")}
+    <rect x="-200" y="560" width="1480" height="1500" fill="#FFFFFF"/>${cloudPuffs(540, 2050, 1400, "#F6F2FF")}`, "left:0;top:0");
+  on(t => {
+    const k = E.io(prog(t, t0, t1));
+    op(c, k > 0 && k < 1 ? 1 : 0); if (!(k > 0 && k < 1)) return;
+    tf(c, `translateY(${lerp(2000, -2700, k)}px)`);
+  });
+}
+
+/* ---------- confetti / FX canvas ---------- */
+const fx = $("#fx").getContext("2d");
+const CC = [Y, PK, BL, MI, "#FF6B8B", "#B28DFF", "#FF9F45"];
+const BURSTS = LV.map(l => ({ t: l.complete + .9, n: 110, dur: 4.5, rain: false })).concat([{ t: P.win, n: 260, dur: P.final - P.win, rain: true }]);
+function drawFX(t) {
+  fx.clearRect(0, 0, W, H);
+  BURSTS.forEach((b, bi) => {
+    const dt = t - b.t; if (dt < 0 || dt > b.dur) return;
+    const fade = 1 - prog(dt, b.dur - 1.2, b.dur);
+    for (let i = 0; i < b.n; i++) {
+      let x, y;
+      if (b.rain) {
+        const sp = 220 + hash(i, bi + 3) * 260, start = hash(i, bi + 4) * 6;
+        const tt = dt - start * .25; if (tt < 0) continue;
+        x = hash(i, bi + 1) * 1180 - 50 + Math.sin(tt * 2 + i) * 50;
+        y = ((tt * sp + hash(i, bi + 5) * 300) % 2200) - 150;
+      } else {
+        const a = hash(i, bi + 1) * 6.283, v = 900 + hash(i, bi + 2) * 1100;
+        x = 540 + Math.cos(a) * v * dt * .55; y = 900 + Math.sin(a) * v * dt * .55 - 600 * dt + 700 * dt * dt;
+      }
+      const rot = dt * (3 + hash(i, 9) * 6) + i, flip = Math.cos(dt * (5 + hash(i, 11) * 5) + i);
+      fx.save(); fx.translate(x, y); fx.rotate(rot); fx.scale(1, flip);
+      fx.globalAlpha = fade; fx.fillStyle = CC[i % CC.length];
+      if (i % 4 === 0) { fx.beginPath(); fx.arc(0, 0, 9, 0, 6.283); fx.fill(); } else fx.fillRect(-12, -6, 24, 12);
+      fx.restore();
+    }
+  });
+  fx.globalAlpha = 1;
+}
+
+/* ---------- map overlay text ---------- */
+function mapTexts() {
+  const t1 = el("div", { class: "abs chip game", style: "left:540px;top:420px;font-size:70px;color:#1B1450;background:linear-gradient(180deg,#FFF39A,#FFD21F);border:6px solid #fff;box-shadow:0 12px 0 #C77A00" }, ov, "🗺️ خريطة رحلة الحقوق");
+  const t2 = el("div", { class: "abs chip game", style: "left:540px;top:1560px;font-size:64px;color:#fff;background:linear-gradient(180deg,#FF8FC8,#E2559B);border:6px solid #fff;box-shadow:0 10px 0 #9C2E6A" }, ov, "🔓 تم فتح المستوى 1!");
+  const t3 = el("div", { class: "abs game", style: "left:540px;top:1560px;font-size:60px;color:#fff;white-space:nowrap;text-shadow:0 5px 0 #2A1A78" }, ov, "4 مستويات • 4 حقوق سحرية ✨");
+  on(t => {
+    const v = win(t, ST.mapIn + 2, ST.dive + .5, .5, .5);
+    op(t1, v); tf(t1, `translate(-50%,-50%) scale(${popScale(t, ST.mapIn + 2, .6)})`);
+    const v2 = win(t, ST.unlock1, ST.dive + .5, .4, .5); op(t2, v2); tf(t2, `translate(-50%,-50%) scale(${popScale(t, ST.unlock1, .6)})`);
+    const v3 = win(t, ST.mapNodes[3] + 1, ST.unlock1 - .2, .5, .3); op(t3, v3); tf(t3, "translate(-50%,-50%)");
+  });
+}
+
+/* ---------- win screen ---------- */
+function winScreen() {
+  const W0 = P.win, F = P.final;
+  const box = el("div", { class: "abs", style: "inset:0" }, ov);
+  const dim = el("div", { class: "abs", style: "inset:0;background:radial-gradient(circle at 50% 42%, rgba(60,30,140,.7), rgba(10,6,40,.92))" }, box);
+  const star = svgEl(box, 520, 520, `<defs><radialGradient id="ws"><stop offset="0" stop-color="#FFF8C4"/><stop offset=".6" stop-color="${Y}"/><stop offset="1" stop-color="#FFB020"/></radialGradient></defs>
+    <g transform="translate(260,260)"><g id="rays">${Array.from({ length: 16 }, (_, i) => `<path d="M-14 0 L0 -250 L14 0Z" fill="${i % 2 ? PK : Y}" opacity=".45" transform="rotate(${i * 22.5})"/>`).join("")}</g>
+    <path d="M0 -170 L48 -58 L168 -52 L76 26 L106 144 L0 80 L-106 144 L-76 26 L-168 -52 L-48 -58Z" fill="url(#ws)" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>
+    <circle cx="-36" cy="0" r="12" fill="${IN}"/><circle cx="36" cy="0" r="12" fill="${IN}"/><path d="M-30 34 Q0 64 30 34" fill="none" stroke="${IN}" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="-62" cy="26" r="14" fill="${PK}"/><circle cx="62" cy="26" r="14" fill="${PK}"/></g>`, "left:280px;top:340px");
+  const ICONS = ["🏫", "📚", "🎮", "🎈", "👨‍👩‍👧", "🏠", "🩺", "🍏"];
+  const orb = ICONS.map(i => el("div", { class: "abs emo", style: "left:0;top:0;font-size:120px" }, box, i));
+  const t1 = el("div", { class: "abs game gtext", style: "left:540px;top:930px;font-size:160px;white-space:nowrap" }, box, "تهانينا!");
+  const t2 = el("div", { class: "abs game", style: "left:540px;top:1085px;font-size:84px;white-space:nowrap;color:#fff;text-shadow:0 6px 0 #5B2A86, 0 0 30px rgba(255,184,222,.8)" }, box, "أنت طفل رائع ومميز 🌟");
+  on(t => {
+    const v = win(t, W0 - .3, F + 1.6, .6, 1.6);
+    box.style.display = v > 0 ? "block" : "none"; if (!v) return;
+    op(box, v);
+    const recede = E.io(prog(t, F - .2, F + 1.6));
+    const sk = popScale(t, W0 + .2, .9);
+    star.querySelector("#rays").setAttribute("transform", `rotate(${t * 20}) scale(${1 + .08 * Math.sin(t * 3)})`);
+    tf(star, `translateY(${Math.sin(t * 2) * 14 - recede * 200}px) scale(${sk * (1 + .05 * Math.sin(t * 4)) * (1 - recede * .5)})`);
+    orb.forEach((e, i) => {
+      const a = t * .9 + i / ICONS.length * 6.283, depth = Math.sin(a);
+      const r = popScale(t, W0 + .6 + i * .12, .6) * (1 - recede * .6);
+      tf(e, `translate(${540 + Math.cos(a) * 420 * r - 60}px,${600 + depth * 150 * r - 60 - recede * 200}px) scale(${(.75 + .35 * (depth + 1) / 2) * r})`);
+      e.style.zIndex = depth > 0 ? 3 : 0; e.style.opacity = (.55 + .45 * (depth + 1) / 2) * (1 - recede);
+    });
+    op(t1, (1 - recede)); tf(t1, `translate(-50%,-50%) scale(${popScale(t, W0 + 1.0, .8)}) rotate(${Math.sin(t * 2) * 2}deg)`);
+    op(t2, (1 - recede)); tf(t2, `translate(-50%,-50%) scale(${popScale(t, W0 + 1.6, .8)})`);
+    dim.style.opacity = 1 - recede * .3;
+  });
+}
+
+/* ---------- final elegant card (off-white, silent voice) ---------- */
+function finalCard() {
+  const F = P.final, f = $("#final");
+  const sky = el("canvas", { width: 1080, height: 1920, class: "full" }, f);
+  const sc = sky.getContext("2d");
+  const card = el("div", { class: "abs", style: "left:540px;top:960px;width:860px;padding:90px 60px 100px;border-radius:36px;text-align:center;background:#FFFDF8;border:3px solid #CDB27A;box-shadow:0 30px 90px rgba(120,90,40,.18), inset 0 0 0 14px #FFFDF8, inset 0 0 0 16px rgba(205,178,122,.7)" }, f);
+  svgEl(card, 300, 60, `<path d="M0 30 H110 M190 30 H300" stroke="#CDB27A" stroke-width="3"/><path d="M150 4 L162 18 L180 18 L168 30 L180 42 L162 42 L150 56 L138 42 L120 42 L132 30 L120 18 L138 18Z" fill="none" stroke="#CDB27A" stroke-width="3"/><circle cx="150" cy="30" r="6" fill="#E9A6C6"/>`, "position:relative;margin:0 auto 34px;width:300px;height:60px");
+  const a = el("div", { style: "font-family:Kufi;font-weight:500;font-size:70px;color:#9A7B45;letter-spacing:2px" }, card, "إعداد المعلمة");
+  const b = el("div", { style: "font-family:Kufi;font-weight:700;font-size:140px;color:#1F2A5A;line-height:1.35;margin-top:10px" }, card, "فاطمة خلف");
+  svgEl(card, 300, 60, `<path d="M0 30 H110 M190 30 H300" stroke="#CDB27A" stroke-width="3"/><path d="M150 4 L162 18 L180 18 L168 30 L180 42 L162 42 L150 56 L138 42 L120 42 L132 30 L120 18 L138 18Z" fill="none" stroke="#CDB27A" stroke-width="3"/><circle cx="150" cy="30" r="6" fill="#9ECDF5"/>`, "position:relative;margin:34px auto 0;width:300px;height:60px");
+  const fs = Array.from({ length: 70 }, (_, i) => ({ x: hash(i, 21) * W, y: hash(i, 22) * H, r: 1.5 + hash(i, 23) * 4, ph: hash(i, 24) * 6.28, c: hash(i, 25) }));
+  on(t => {
+    const v = prog(t, F - .3, F + 1.4);
+    op(f, v); if (!v) return;
+    sc.fillStyle = "#FBF7EF"; sc.fillRect(0, 0, W, H);
+    fs.forEach(s => {
+      const x = s.x + Math.sin((t - F) * .08 + s.ph) * 30, y = (s.y - (t - F) * 6 + H) % H;
+      sc.globalAlpha = .25 + .2 * Math.sin(t * .7 + s.ph);
+      sc.fillStyle = s.c < .33 ? "#E3C98E" : s.c < .66 ? "#F2B8D2" : "#A9CDEF";
+      sc.beginPath(); for (let k = 0; k < 10; k++) { const ang = k * Math.PI / 5 - Math.PI / 2, rr = k % 2 ? s.r * .45 : s.r * 1.6; sc.lineTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr); } sc.fill();
+    });
+    sc.globalAlpha = 1;
+    const ck = E.out(prog(t, F + 1.2, F + 3.2));
+    card.style.opacity = ck; tf(card, `translate(-50%,-50%) translateY(${(1 - ck) * 40}px) scale(${lerp(.96, 1, ck)})`);
+    a.style.opacity = prog(t, F + 1.8, F + 3.2); b.style.opacity = prog(t, F + 2.4, F + 4.0);
+    $("#black").style.opacity = E.io(prog(t, P.fadeOut, 420));
+  });
+}
+
+/* =========================== BUILD =========================== */
+buildMap();
+island0(); island1(); island2(); island3(); island4();
+balloons(ST.balloons, ST.mapIn + 1.5, 16, 1);
+titleCard([["يوم الطفل", 150, "gtext"], ["رحلة استكشاف الحقوق 🚀", 84, ""]], ST.title, ST.dock, ST.mapIn, 470, .62);
+startButton();
+mapTexts();
+speedLines(ST.dive + 1.6, LV[0].S + .4);
+const TITLES = ["المستوى 1: عقلك ينمو بالعلم 🧠✨", "المستوى 2: جسد قوي وعقل ذكي 🍏💪", "المستوى 3: العب.. عبّر.. وشارك 🎤🎮", "المستوى 4: بيتي هو أماني 🏠❤️"];
+LV.forEach((l, i) => {
+  const [a, b] = TITLES[i].split(": ");
+  titleCard([[a, 70, ""], [b, 104, "gtext"]], l.titleIn, l.dock, l.leave, 400, .6);
+  mission(i); complete(i);
+});
+cloudWipe(LV[1].leave + .3, LV[2].S + .8);
+balloons(P.win + .2, P.final + .5, 14, 7);
+winScreen();
+hud(); dialog(); guide();
+finalCard();
+buildScore();
+
+window.render = function (t) {
+  const cam = applyCam(t);
+  drawBG(t, cam);
+  for (const f of anims) f(t, cam);
+  drawFX(t);
+};
+window.ready = document.fonts.ready.then(() => Promise.all(["Lalezar", "Baloo", "Kufi"].map(f => document.fonts.load(`40px ${f}`, "أبجد")))).then(() => { window.render(0); return true; });
+</script>
+</body>
+</html>
