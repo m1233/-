@@ -12,6 +12,13 @@ Everything in this video was built from scratch in code: the illustrations, the 
 | `music-and-sfx-only.mp3` | The cheerful song and game sound effects, without the voice |
 | `full-mix-audio.mp3` | The final soundtrack exactly as it plays in the video |
 
+## Art direction (v2: semi-realistic)
+- No thick cartoon outlines. Every element is shaded with gradients, highlights and soft shadows to give it volume and lighting.
+- Custom drawn icons (more than 30, semi-realistic) replace the cartoon emoji, including in the titles (🚀🧠✨🍏💪🎤🎮🏠❤️🌟 are drawn as illustrations).
+- The characters (the guide, the doctor, the family, the girl on the swing) have realistic human proportions and shaded faces.
+- The interface uses sleek glass panels and the Cairo font throughout.
+- The teacher's name card matches the video: the same night background with stars, gold and pink accents, and a Kufi typeface in a gold gradient.
+
 ## Concept
 The video is a magic video game. «القائدة» (The Guide) is a cartoon girl with a gaming headset. She appears as a portrait in an RPG-style dialog box, and her mouth moves in sync with every word she speaks. A HUD stays on screen throughout: the level indicator, a ⭐ score that rises with every spoken word and every collected item, and four badge slots that unlock one by one.
 
@@ -23,7 +30,7 @@ The video is a magic video game. «القائدة» (The Guide) is a cartoon gir
 | 3:40–5:00 | Level 3: Fun Land | A cloud transition. A rainbow, a moving swing, bouncing balls and bubbles carrying speaking and idea icons |
 | 5:00–6:20 | Level 4: Safety Shield | Clouds and stars gather to form a warm yellow and light-blue house, surrounded by a ring of pink hearts, with a happy family hugging |
 | 6:20–6:45 | Win screen | Confetti, a smiling star, the earlier icons orbiting in 3D, and «تهانينا! أنت طفل رائع ومميز 🌟» |
-| 6:45–7:00 | Closing card | No voice. An off-white background with faint stars drifting very slowly, an elegant Kufi card reading «إعداد المعلمة: فاطمة خلف», the music rising gently, then a soft fade-out |
+| 6:45–7:00 | Closing card | No voice. The video's night background with faint stars drifting very slowly, and a glass card with gold frames and Kufi type reading «إعداد المعلمة: فاطمة خلف» to match the video's colors. The music rises gently, then a soft fade-out |
 
 Each level runs the same game loop: a 3D pop-up arrival → a 3D title card → the guide's narration → a collection mission (4 items labelled with keywords from the narration) → «أحسنت يا بطل!» with 3 stars → the badge flies into the HUD.
 
@@ -50,4 +57,4 @@ node src/render.js --stills 5,70,390               # preview PNGs
 - The voice is a neural TTS voice, processed to sound younger. It is not a real child's recording. A real recording can replace `build/voice.wav` and keep the same timing.
 - The script's narration fills about 2 minutes of the 7. The remaining time is game sequences (map, missions, level complete) carried by music and sound effects, in line with the time windows given in the storyboard.
 
-Fonts: Lalezar, Baloo Bhaijaan 2, Reem Kufi (all SIL OFL) and Noto Color Emoji.
+Fonts: Cairo and Reem Kufi (SIL OFL). All icons are custom SVG.
