@@ -7,7 +7,7 @@ Everything in this video was built from scratch in code: the illustrations, the 
 
 | File | Specification |
 |---|---|
-| `child-rights-day-7min-9x16.mp4` | 1080×1920 (9:16), 30 fps, H.264, **exactly 420.0 s**, AAC stereo mix (voice + music + SFX), −14 LUFS-class loudness for TikTok |
+| `child-rights-day-7min-9x16_web.mp4` (in the repo, 99 MB to fit GitHub's 100 MB limit; the full-quality 245 MB master is delivered separately) | 1080×1920 (9:16), 30 fps, H.264, **exactly 420.0 s**, AAC stereo mix (voice + music + SFX), −14 LUFS-class loudness for TikTok |
 | `voice-only.mp3` | The guide girl's narration on its own |
 | `music-and-sfx-only.mp3` | The cheerful song and game sound effects, without the voice |
 | `full-mix-audio.mp3` | The final soundtrack exactly as it plays in the video |
