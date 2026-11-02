@@ -41,6 +41,7 @@ svg { overflow: visible; display: block; }
 <svg width="0" height="0" style="position:absolute" id="defs"></svg>
 <div id="stage">
   <canvas id="bg" class="full" width="1080" height="1920"></canvas>
+  <canvas id="gl" class="full" width="810" height="1440" style="width:1080px;height:1920px"></canvas>
   <div id="world"></div>
   <div id="ov"></div>
   <canvas id="fx" class="full" width="1080" height="1920"></canvas>
@@ -48,8 +49,9 @@ svg { overflow: visible; display: block; }
   <div id="final"></div>
   <div id="black" class="abs" style="inset:0;background:#000;opacity:0"></div>
 </div>
-<script>
-"use strict";
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import { createWorld, createGuide } from "./world3d.js";
 /* =========================================================================
    Deterministic motion engine — semi-realistic art direction.
    render(t) is a pure function of time.  TL = narration word timestamps,
@@ -373,165 +375,6 @@ function floatingRock(cx, top, w, grassG = "grass") {
     <path d="M${cx - w / 2} ${top} Q${cx} ${top - w * .06} ${cx + w / 2} ${top} Q${cx + w * .48} ${top + w * .05} ${cx + w * .44} ${top + w * .06} Q${cx} ${top + w * .1} ${cx - w * .44} ${top + w * .06} Q${cx - w * .48} ${top + w * .05} ${cx - w / 2} ${top}Z" fill="url(#${grassG})"/>`;
 }
 
-/* ---------- Island 0 : magic portal ---------- */
-function island0() {
-  const g = island(0); visibleGroup(g, 0, 0, ST.dive + 3);
-  const p = svgEl(g, 900, 900, `<defs><radialGradient id="pg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".25" stop-color="#FFD9EE"/><stop offset=".55" stop-color="#9C7CFF" stop-opacity=".85"/><stop offset=".8" stop-color="#4A2DB8" stop-opacity=".5"/><stop offset="1" stop-color="#2A1680" stop-opacity="0"/></radialGradient></defs>
-    <g transform="translate(450,450)"><circle r="440" fill="url(#glowP)" opacity=".35"/><circle id="core" r="330" fill="url(#pg)"/>
-      <g id="sw">${Array.from({ length: 8 }, (_, i) => `<path d="M0 0 C 90 -70, 220 -40, 300 50" fill="none" stroke="${i % 2 ? "#FFE7A0" : "#FFFFFF"}" stroke-opacity=".35" stroke-width="${6 + (i % 3) * 3}" stroke-linecap="round" transform="rotate(${i * 45})"/>`).join("")}</g>
-      <circle id="r1" r="360" fill="none" stroke="url(#ringG)" stroke-width="6"/><circle id="r2" r="392" fill="none" stroke="#FFE7A0" stroke-opacity=".5" stroke-width="3" stroke-dasharray="2 14" stroke-linecap="round"/>
-      <circle id="r3" r="420" fill="none" stroke="#A8D4FF" stroke-opacity=".35" stroke-width="3"/>
-      <g id="spk">${Array.from({ length: 14 }, (_, i) => `<circle r="${4 + (i % 3) * 3}" fill="#fff"/>`).join("")}</g></g>`, "left:90px;top:520px");
-  const q = s => p.querySelector(s);
-  on(t => {
-    if (g.style.display === "none") return;
-    const o = E.out(prog(t, ST.portal, ST.portal + 2.6));
-    q("#core").setAttribute("transform", `scale(${o * (1 + Math.sin(t * 2) * .03)})`);
-    q("#sw").setAttribute("transform", `rotate(${t * 60}) scale(${o})`);
-    q("#r1").setAttribute("transform", `rotate(${t * 25}) scale(${E.back(prog(t, ST.portal, ST.portal + 1.4))})`);
-    q("#r2").setAttribute("transform", `rotate(${-t * 30}) scale(${E.back(prog(t, ST.portal + .3, ST.portal + 1.7))})`);
-    q("#r3").setAttribute("transform", `scale(${E.back(prog(t, ST.portal + .6, ST.portal + 2))})`);
-    [...q("#spk").children].forEach((s, i) => { const a = t * .7 + i * .449, r = 360 + Math.sin(t * 2 + i) * 60;
-      s.setAttribute("transform", `translate(${Math.cos(a) * r},${Math.sin(a) * r})`); s.setAttribute("opacity", o * (.3 + .7 * Math.abs(Math.sin(t * 3 + i)))); });
-    p.style.opacity = prog(t, ST.portal - .2, ST.portal + .6);
-  });
-}
-
-/* ---------- Island 1 : flying castle of books ---------- */
-const BG = ["bookR", "bookB", "bookY", "bookG", "bookP", "bookK"];
-function bookTower(x, yb, w, n, seed) {
-  let s = "", y = yb;
-  for (let i = 0; i < n; i++) { const h = 32 + hash(i, seed) * 14, ww = w - hash(i, seed + 1) * 24, off = (hash(i, seed + 2) - .5) * 14; y -= h; s += book3d(x - ww / 2 + off, y, ww, h - 2, 16, BG[(i + seed) % 6]); }
-  return { s, top: y };
-}
-function island1() {
-  const l = LV[0], g = island(1); visibleGroup(g, 1, l.S - 3, l.next + .5);
-  const L0 = layer(g, l.popup, 0), L1 = layer(g, l.popup, 1), L2 = layer(g, l.popup, 2);
-  svgEl(L0, 1080, 1920, `<circle cx="540" cy="760" r="520" fill="url(#glowB)" opacity=".25"/>${floatingRock(540, 1085, 860)}${cloudPuffs(200, 1180, 300, .9)}${cloudPuffs(900, 1160, 260, .9)}`, "left:0;top:0");
-  const t1 = bookTower(320, 1080, 190, 9, 3), t2 = bookTower(540, 1080, 250, 12, 7), t3 = bookTower(760, 1080, 190, 9, 11);
-  const roof = (x, y, w, gr) => `<path d="M${x - w / 2 - 14} ${y} L${x} ${y - w * .9} L${x + w / 2 + 14} ${y}Z" fill="url(#${gr})"/><path d="M${x} ${y - w * .9} L${x + w / 2 + 14} ${y} L${x + w / 2 + 30} ${y - 8}Z" fill="#000" opacity=".25"/>
-     <line x1="${x}" y1="${y - w * .9}" x2="${x}" y2="${y - w * .9 - 90}" stroke="#4A5068" stroke-width="6"/>`;
-  const cas = svgEl(L1, 1080, 1920, `${t1.s}${t2.s}${t3.s}${roof(320, t1.top, 190, "shirtPink")}${roof(540, t2.top, 250, "shirtBlue")}${roof(760, t3.top, 190, "shirtPink")}
-    <path d="M438 1080 V950 Q540 870 642 950 V1080Z" fill="url(#page)"/><path d="M540 905 V1080" stroke="#C9B88E" stroke-width="4"/><path d="M438 1080 V950 Q540 870 642 950 V1080Z" fill="url(#glowY)" opacity=".35"/>
-    <g id="flags">${[[320, t1.top - 171], [540, t2.top - 225], [760, t3.top - 171]].map(([x, y], i) => `<path data-x="${x}" data-y="${y - 90}" fill="url(#${i === 1 ? "shirtYellow" : "shirtMint"})"/>`).join("")}</g>`, "left:0;top:0");
-  const flags = [...cas.querySelectorAll("#flags path")];
-  const tel = `<g><rect x="-70" y="-15" width="110" height="30" rx="8" fill="url(#gold)"/><rect x="34" y="-21" width="34" height="42" rx="7" fill="url(#metal)"/><circle cx="66" cy="0" r="12" fill="url(#screen)"/><rect x="-82" y="-9" width="16" height="18" rx="4" fill="url(#metal)"/></g>`;
-  const pen = gr => `<g><rect x="-62" y="-11" width="100" height="22" rx="3" fill="url(#${gr})"/><path d="M38 -11 L70 0 L38 11Z" fill="#E9C9A0"/><path d="M60 -4 L70 0 L60 4Z" fill="#333"/><rect x="-76" y="-11" width="16" height="22" rx="5" fill="url(#silver)"/></g>`;
-  const items = [tel, pen("shirtYellow"), pen("shirtMint"), tel, pen("shirtPink"), pen("shirtBlue")];
-  const fly = svgEl(L2, 1080, 1920, items.map(s => `<g class="fi">${s}</g>`).join("") + Array.from({ length: 22 }, () => `<circle class="st" r="10" fill="url(#glowY)"/>`).join(""), "left:0;top:0");
-  on(t => {
-    if (g.style.display === "none") return;
-    tf(cas, `translateY(${Math.sin(t * 1.2) * 12}px)`);
-    flags.forEach((f, i) => { const x = +f.dataset.x, y = +f.dataset.y, w = Math.sin(t * 5 + i) * 9;
-      f.setAttribute("d", `M${x} ${y} Q${x + 40} ${y - 10 + w} ${x + 84} ${y + w} Q${x + 40} ${y + 30 + w * .5} ${x} ${y + 40}Z`); });
-    fly.querySelectorAll(".fi").forEach((e, i) => { const a = t * (.3 + i * .04) + i * 1.05;
-      e.setAttribute("transform", `translate(${540 + Math.cos(a) * 440},${700 + Math.sin(a) * 240 + Math.sin(t * 2 + i) * 18}) rotate(${Math.sin(t + i) * 20 + (Math.cos(a) > 0 ? 0 : 180)}) scale(${.85 + .25 * Math.sin(a)})`); });
-    fly.querySelectorAll(".st").forEach((e, i) => { const ph = (t * .3 + i / 22) % 1, a = i * 2.4;
-      e.setAttribute("transform", `translate(${540 + Math.cos(a) * (180 + ph * 320)},${780 - ph * 520 + Math.sin(a) * 100}) scale(${Math.sin(ph * Math.PI) * (.6 + hash(i) * 1.2)})`); });
-  });
-}
-
-/* ---------- Island 2 : energy oasis ---------- */
-function palmTree(x, y, s, id) {
-  const seg = Array.from({ length: 9 }, (_, i) => { const k = i / 8, px = Math.sin(k * 1.4) * 40, py = -k * 330; return `<ellipse cx="${px}" cy="${py}" rx="${20 - k * 6}" ry="22" fill="url(#wood)"/>`; }).join("");
-  return `<g id="${id}" transform="translate(${x},${y}) scale(${s})"><ellipse cx="0" cy="6" rx="60" ry="10" fill="url(#shadow)"/>${seg}
-    <g class="fr" transform="translate(40,-335)">${[-160, -120, -70, -20, 30, 80, 130].map((a, i) => `<path d="M0 0 C 60 -46, 140 -34, 196 22 C 150 4, 80 6, 0 0Z" fill="url(#${i % 2 ? "leaf" : "leafD"})" transform="rotate(${a})"/>`).join("")}
-    <circle cx="-12" cy="14" r="16" fill="url(#wood)"/><circle cx="14" cy="18" r="16" fill="url(#wood)"/></g></g>`;
-}
-function island2() {
-  const l = LV[1], g = island(2); visibleGroup(g, 2, l.S - 3, l.next + .5);
-  const L0 = layer(g, l.popup, 0), L1 = layer(g, l.popup, 1), L2 = layer(g, l.popup, 2);
-  svgEl(L0, 1080, 1920, `<circle cx="540" cy="700" r="560" fill="url(#glowY)" opacity=".18"/>${floatingRock(540, 1060, 1000, "grass")}
-    <ellipse cx="560" cy="1090" rx="230" ry="58" fill="url(#sand)"/><ellipse cx="560" cy="1092" rx="196" ry="44" fill="url(#water)"/>
-    <ellipse id="rip" cx="560" cy="1092" rx="120" ry="28" fill="none" stroke="#fff" stroke-width="3" opacity=".5"/><ellipse cx="520" cy="1080" rx="70" ry="9" fill="#fff" opacity=".35"/>`, "left:0;top:0");
-  const doc = figure({ h: 470, coat: true, top: "coat", sleeve: "#E9EEF6", bottom: "pants", hairG: "hairBlack", aR: -140, bR: -20, aL: 14, bL: -8 });
-  const mid = svgEl(L1, 1080, 1920, palmTree(170, 1060, 1.0, "pa") + palmTree(360, 1040, .78, "pb") + `<g id="doc" transform="translate(810,1080)">${doc.svg}</g>`, "left:0;top:0");
-  const heart = svgEl(L2, 400, 400, `<g transform="translate(200,200)"><circle id="hglow" r="190" fill="url(#glowP)"/><g id="hp">${iconG("heart", 0, 0, 1.45)}
-    <rect x="-14" y="-40" width="28" height="80" rx="6" fill="#fff" opacity=".92"/><rect x="-40" y="-14" width="80" height="28" rx="6" fill="#fff" opacity=".92"/></g></g>`, "left:340px;top:330px");
-  const FR = ["apple", "banana", "carrot", "strawberry", "grapes", "orange", "apple", "strawberry"];
-  const fr = FR.map(f => svgEl(L2, 130, 130, `<g transform="scale(.65)">${ICONS[f]()}</g>`, "left:0;top:0"));
-  const qd = s => mid.querySelector(s);
-  on(t => {
-    if (g.style.display === "none") return;
-    const beat = (t * 1.2) % 1, pulse = 1 + .09 * Math.exp(-beat * 9) + .05 * Math.exp(-Math.max(0, beat - .22) * 9) * (beat > .22);
-    heart.querySelector("#hp").setAttribute("transform", `scale(${pulse})`);
-    heart.querySelector("#hglow").setAttribute("transform", `scale(${.8 + beat * .35})`); heart.querySelector("#hglow").setAttribute("opacity", .6 * (1 - beat) + .2);
-    tf(heart, `translateY(${Math.sin(t * 1.3) * 12}px)`);
-    fr.forEach((e, i) => { const a = t * .35 + i * .785, x = 540 + Math.cos(a) * 410, y = 570 + Math.sin(a) * 200;
-      tf(e, `translate(${x - 65}px,${y - 65 + Math.sin(t * 2.5 + i) * 12}px) rotate(${Math.sin(t * 1.4 + i) * 18}deg) scale(${.82 + .3 * Math.sin(a)})`); e.style.zIndex = Math.sin(a) > 0 ? 3 : 1; e.style.opacity = .75 + .25 * Math.sin(a); });
-    const u = qd(`.${doc.id}Ru`), f = qd(`.${doc.id}Rf`);
-    u.setAttribute("transform", `rotate(${-140 + Math.sin(t * 2) * 4})`); f.setAttribute("transform", `rotate(${-10 + Math.sin(t * 6) * 26})`);
-    mid.querySelectorAll(".fr").forEach((fr2, i) => fr2.setAttribute("transform", `translate(40,-335) rotate(${Math.sin(t * 1.3 + i) * 4})`));
-    const rip = g.querySelector("#rip"); const r = (t * .6) % 1; rip.setAttribute("rx", 40 + r * 160); rip.setAttribute("ry", 10 + r * 36); rip.setAttribute("opacity", .5 * (1 - r));
-  });
-}
-
-/* ---------- Island 3 : cloud fun land ---------- */
-function island3() {
-  const l = LV[2], g = island(3); visibleGroup(g, 3, l.S - 3, l.next + .5);
-  const L0 = layer(g, l.popup, 0), L1 = layer(g, l.popup, 1), L2 = layer(g, l.popup, 2);
-  const rb = ["#FF6B8B", "#FF9F45", "#FFE14D", "#6EE7A8", "#5AB4FF", "#B28DFF"];
-  svgEl(L0, 1080, 1920, `<circle cx="540" cy="760" r="560" fill="url(#glowW)" opacity=".18"/>` + rb.map((c, i) => `<path d="M${80 + i * 26} 1020 A ${460 - i * 26} ${460 - i * 26} 0 0 1 ${1000 - i * 26} 1020" fill="none" stroke="${c}" stroke-width="28" opacity=".5"/>`).join("") +
-    cloudPuffs(540, 1110, 1000) + cloudPuffs(300, 1200, 520) + cloudPuffs(820, 1210, 480), "left:0;top:0");
-  const kid = figure({ h: 300, kid: true, top: "shirtYellow", sleeve: "#E9B92E", bottom: "shirtBlue", hair: "pony", hairG: "hairBrown", aL: 168, bL: 0, aR: -168, bR: 0, legScale: .6 });
-  const swing = svgEl(L1, 1080, 1920, `${cloudPuffs(540, 330, 560)}
-    <g id="sw" transform="translate(540,340)"><line x1="-82" y1="0" x2="-82" y2="470" stroke="#C9B49A" stroke-width="6"/><line x1="82" y1="0" x2="82" y2="470" stroke="#C9B49A" stroke-width="6"/>
-      <g transform="translate(0,${470 + 300 * .26})">${kid.svg}</g><rect x="-118" y="462" width="236" height="24" rx="8" fill="url(#wood)"/></g>`, "left:0;top:0");
-  const balls = Array.from({ length: 5 }, () => svgEl(L2, 120, 120, `<g transform="scale(.6)">${ICONS.ball()}</g>`, "left:0;top:0"));
-  const BI = ["mic", "speech", "bulb", "palette", "gamepad", "speech"];
-  const bub = BI.map(ic => svgEl(L2, 180, 180, `<circle cx="90" cy="90" r="86" fill="url(#glassOrb)"/><circle cx="90" cy="90" r="86" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
-      <g transform="translate(40,40) scale(.5)">${ICONS[ic]()}</g><path d="M40 52 Q60 26 96 22" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".7" fill="none"/>`, "left:0;top:0"));
-  on(t => {
-    if (g.style.display === "none") return;
-    swing.querySelector("#sw").setAttribute("transform", `translate(540,340) rotate(${Math.sin(t * 1.8) * 22})`);
-    balls.forEach((b, i) => { const ph = (t * (.45 + i * .07) + i * .23) % 1, x = 120 + ((t * (60 + i * 25) + i * 210) % 840), y = 1080 - Math.abs(Math.sin(ph * Math.PI)) * (280 + i * 40);
-      tf(b, `translate(${x - 60}px,${y - 60}px) rotate(${t * 120 + i * 50}deg)`); });
-    bub.forEach((b, i) => { const ph = (t * .1 + i / BI.length) % 1, x = 150 + i * 156 + Math.sin(t * 1.2 + i) * 40, y = 1100 - ph * 900, s = .6 + .4 * Math.sin(ph * Math.PI);
-      tf(b, `translate(${x - 90}px,${y - 90}px) scale(${s * (1 + Math.sin(t * 4 + i) * .03)},${s * (1 - Math.sin(t * 4 + i) * .03)})`); b.style.opacity = Math.min(1, Math.sin(ph * Math.PI) * 2); });
-  });
-}
-
-/* ---------- Island 4 : warm safety shield ---------- */
-function housePts() {
-  const pts = [], seg = [[300, 1060, 300, 760], [300, 760, 540, 560], [540, 560, 780, 760], [780, 760, 780, 1060], [780, 1060, 300, 1060]];
-  seg.forEach(([a, b, c, d]) => { for (let i = 0; i < 10; i++) pts.push([lerp(a, c, i / 10), lerp(b, d, i / 10)]); });
-  return pts;
-}
-function island4() {
-  const l = LV[3], g = island(4); visibleGroup(g, 4, l.S - 3, l.next + .5);
-  const gather = l.S + .2, built = l.S + 3.2, pts = housePts();
-  const parts = svgEl(g, 1080, 1920, pts.map((_, i) => i % 3 ? `<circle class="gp" r="16" fill="url(#${i % 2 ? "glowY" : "glowW"})"/>` : `<g class="gp">${cloudPuffs(0, 0, 90, .9)}</g>`).join(""), "left:0;top:0");
-  const L0 = layer(g, built - .4, 0), L1 = layer(g, built - .4, 1), L2 = layer(g, built - .4, 2);
-  svgEl(L0, 1080, 1920, `${cloudPuffs(540, 1100, 960, .95)}<circle cx="540" cy="800" r="480" fill="url(#glowP)" opacity=".22"/>
-    <path d="M70 1090 A 470 520 0 0 1 1010 1090" fill="none" stroke="#FFC2DF" stroke-width="3" opacity=".55"/>`, "left:0;top:0");
-  const house = svgEl(L1, 1080, 1920, `<circle cx="540" cy="840" r="430" fill="url(#glowY)" id="hg2" opacity=".5"/>
-    <path d="M780 760 L860 716 L860 1016 L780 1060Z" fill="url(#wallSide)"/><rect x="660" y="590" width="64" height="150" fill="url(#bookR)"/>
-    <rect x="300" y="760" width="480" height="300" fill="url(#wall)"/><path d="M270 790 L540 560 L810 790Z" fill="url(#roof)"/><path d="M540 560 L640 506 L900 736 L810 790Z" fill="url(#roofSide)"/>
-    ${Array.from({ length: 6 }, (_, i) => `<path d="M${300 + i * 40} ${790 - i * 34} L${780 - i * 40} ${790 - i * 34}" stroke="#B97710" stroke-width="2" opacity=".35"/>`).join("")}
-    <path d="M486 1060 V935 Q540 880 594 935 V1060Z" fill="url(#door)"/><circle cx="574" cy="1000" r="7" fill="url(#gold)"/>
-    ${[[340, 820], [650, 820]].map(([x, y]) => `<rect x="${x}" y="${y}" width="96" height="84" rx="6" fill="url(#window)"/><path d="M${x + 48} ${y} V${y + 84} M${x} ${y + 42} H${x + 96}" stroke="#fff" stroke-width="5" opacity=".7"/><circle cx="${x + 48}" cy="${y + 42}" r="90" fill="url(#glowY)" opacity=".35"/>`).join("")}
-    <rect x="300" y="760" width="480" height="18" fill="#fff" opacity=".25"/>`, "left:0;top:0");
-  const dad = figure({ h: 480, top: "shirtBlue", sleeve: "#3F80CF", hairG: "hairBlack", aL: 8, bL: -4, aR: -34, bR: -8 });
-  const mom = figure({ h: 450, female: true, hair: "long", top: "shirtPurple", sleeve: "#8A62E0", hairG: "hairDark", aL: 34, bL: 8, aR: -8, bR: 4 });
-  const girl = figure({ h: 300, kid: true, hair: "pony", top: "shirtPink", sleeve: "#E06EA2", bottom: "shirtPurple", hairG: "hairBrown", aL: 30, bL: 6, aR: -30, bR: -6 });
-  const boy = figure({ h: 280, kid: true, top: "shirtMint", sleeve: "#3FC690", bottom: "pants", hairG: "hairBlack", aL: 30, bL: 6, aR: -30, bR: -6 });
-  const fam = svgEl(L2, 1080, 1920, `<ellipse cx="540" cy="1150" rx="330" ry="40" fill="url(#shadow)"/>
-    <g class="pp" data-x="320">${dad.svg}</g><g class="pp" data-x="760">${mom.svg}</g><g class="pp" data-x="465">${girl.svg}</g><g class="pp" data-x="620">${boy.svg}</g>`, "left:0;top:0");
-  const hearts = Array.from({ length: 14 }, () => svgEl(L2, 80, 80, `<g transform="scale(.4)">${ICONS.heart()}</g>`, "left:0;top:0"));
-  on(t => {
-    if (g.style.display === "none") return;
-    const gk = E.io(prog(t, gather, built));
-    parts.querySelectorAll(".gp").forEach((p, i) => { const sx = hash(i, 9) * 1080, sy = hash(i, 8) * 1920, [tx, ty] = pts[i];
-      p.setAttribute("transform", `translate(${lerp(sx, tx, gk) + Math.sin(t * 2 + i) * 10 * (1 - gk)},${lerp(sy, ty, gk)}) scale(${.7 + .6 * (1 - gk)})`); });
-    parts.style.opacity = prog(t, gather - .3, gather + .3) * (1 - prog(t, built, built + .8));
-    house.querySelector("#hg2").setAttribute("opacity", .45 + .15 * Math.sin(t * 1.5));
-    fam.querySelectorAll(".pp").forEach((p, i) => p.setAttribute("transform", `translate(${+p.dataset.x},${1150 + Math.sin(t * 2 + i) * 3})`));
-    hearts.forEach((h, i) => { const a = t * .45 + i / 14 * 6.283, x = 540 + Math.cos(a) * 470, y = 800 + Math.sin(a) * 300;
-      tf(h, `translate(${x - 40}px,${y - 40}px) scale(${.7 + .3 * Math.sin(a) + .06 * Math.sin(t * 5 + i)})`); h.style.zIndex = Math.sin(a) > 0 ? 5 : 0;
-      h.style.opacity = prog(t, built + .4 + i * .08, built + .8 + i * .08) * (.55 + .35 * (Math.sin(a) + 1) / 2); });
-  });
-}
-
 /* ---------- Map ---------- */
 const NODES = [{ e: "rocket", n: "الانطلاق" }, { e: "books", n: "قلعة المعرفة" }, { e: "apple", n: "واحة الطاقة" }, { e: "balloon", n: "أرض المرح" }, { e: "house", n: "درع الأمان" }];
 const UNLOCK = [0, ST.unlock1, LV[0].complete + 1, LV[1].complete + 1, LV[2].complete + 1];
@@ -649,33 +492,16 @@ function speakingAt(t) {
   return -1;
 }
 function guide() {
-  const g = svgEl(ov2, 230, 280, `<defs><clipPath id="gclip"><circle cx="115" cy="115" r="106"/></clipPath>
-    <radialGradient id="gbg" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="#FFD6EA"/><stop offset=".6" stop-color="#8E86F0"/><stop offset="1" stop-color="#3A2C9E"/></radialGradient></defs>
-    <circle cx="115" cy="115" r="112" fill="url(#gold)"/><circle cx="115" cy="115" r="106" fill="url(#gbg)"/>
-    <g clip-path="url(#gclip)"><g id="head" transform="translate(115,120)">
-      <path d="M-66 -10 C-80 60,-70 110,-40 130 L40 130 C70 110,80 60,66 -10Z" fill="url(#hairDark)"/>
-      <path d="M-78 150 C-70 106,-34 92,0 92 C34 92,70 106,78 150Z" fill="url(#shirtPink)"/><rect x="-14" y="56" width="28" height="40" fill="url(#skinD)"/>
-      <ellipse cx="-52" cy="8" rx="9" ry="14" fill="url(#skinD)"/><ellipse cx="52" cy="8" rx="9" ry="14" fill="url(#skinD)"/>
-      <path d="M0 -62 C48 -62,54 6,44 32 C36 54,18 70,0 70 C-18 70,-36 54,-44 32 C-54 6,-48 -62,0 -62Z" fill="url(#skin)"/>
-      <ellipse cx="-26" cy="26" rx="12" ry="7" fill="#F29A9A" opacity=".35"/><ellipse cx="26" cy="26" rx="12" ry="7" fill="#F29A9A" opacity=".35"/>
-      <g id="eyes">${[-1, 1].map(s => `<ellipse cx="${s * 19}" cy="6" rx="10.5" ry="7" fill="#fff"/><circle cx="${s * 19}" cy="6.5" r="6" fill="url(#iris)"/><circle cx="${s * 19}" cy="6.5" r="2.6" fill="#120804"/><circle cx="${s * 19 + 2}" cy="4" r="1.8" fill="#fff"/>
-        <path d="M${s * 19 - 11} 4 Q${s * 19} -4 ${s * 19 + 11} 4" stroke="#2A160C" stroke-width="2.6" fill="none" stroke-linecap="round"/>`).join("")}</g>
-      ${[-1, 1].map(s => `<path d="M${s * 19 - 12} -9 Q${s * 19} -14 ${s * 19 + 12} -9" stroke="#4A2C1C" stroke-width="3.2" fill="none" stroke-linecap="round"/>`).join("")}
-      <path d="M-2 14 Q2 26 6 24" stroke="#C88466" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-      <g transform="translate(0,40)"><ellipse id="mo" cx="0" cy="0" rx="11" ry="2" fill="#6E1E2E"/><path d="M-12 0 Q0 -5 12 0" stroke="#C25B66" stroke-width="3" fill="none" stroke-linecap="round"/><path id="bl" d="M-11 1 Q0 7 11 1" stroke="#C25B66" stroke-width="3.4" fill="none" stroke-linecap="round"/></g>
-      <path d="M-50 10 C-60 -56,-20 -74,4 -72 C40 -72,62 -48,50 10 C46 -20,30 -38,12 -40 C0 -26,-24 -22,-36 -30 C-44 -20,-48 -8,-50 10Z" fill="url(#hairDark)"/>
-      <path d="M-20 -60 Q10 -70 34 -54" stroke="#fff" stroke-width="3" opacity=".2" fill="none"/>
-      <path d="M-58 0 C-64 -66,64 -66,58 0" fill="none" stroke="#3A3F52" stroke-width="7"/>
-      <rect x="-66" y="-12" width="16" height="30" rx="7" fill="url(#metal)"/><rect x="50" y="-12" width="16" height="30" rx="7" fill="url(#metal)"/><circle cx="58" cy="3" r="3" fill="#7FD3FF"/>
-      <path d="M-58 14 Q-52 44 -18 44" fill="none" stroke="#3A3F52" stroke-width="3.5"/><circle cx="-16" cy="44" r="4.5" fill="url(#metal)"/>
-    </g></g>
-    <rect x="45" y="214" width="140" height="46" rx="23" fill="url(#gold)"/><text x="115" y="246" text-anchor="middle" font-family="Cairo" font-weight="900" font-size="28" fill="#2A1606">القائدة</text>`, "left:30px;top:1095px");
+  const g = el("div", { class: "abs", style: "left:30px;top:1095px;width:230px;height:280px" }, ov2);
+  el("div", { class: "abs", style: "left:3px;top:3px;width:224px;height:224px;border-radius:50%;background:linear-gradient(180deg,#FFF6C8,#E0A21B);box-shadow:0 10px 30px rgba(0,0,0,.5), 0 0 30px rgba(255,200,120,.4)" }, g);
+  const bgc = el("div", { class: "abs", style: "left:10px;top:10px;width:210px;height:210px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 35%,#FFD6EA,#8E86F0 60%,#3A2C9E)" }, g);
+  const cv = el("canvas", { width: 420, height: 420, style: "width:210px;height:210px;display:block" }, bgc);
+  svgEl(g, 230, 280, `<rect x="45" y="214" width="140" height="46" rx="23" fill="url(#gold)"/><text x="115" y="246" text-anchor="middle" font-family="Cairo" font-weight="900" font-size="28" fill="#2A1606">القائدة</text>`, "left:0;top:0");
+  const G3 = createGuide(cv);
   on(t => {
     const v = dialogVis(t); op(g, v); if (!v) return;
-    const sp = speakingAt(t), open = sp >= 0 ? .3 + .7 * Math.abs(Math.sin(sp * Math.PI * 6.5)) : 0;
-    g.querySelector("#mo").setAttribute("ry", 1.5 + open * 7.5); g.querySelector("#bl").setAttribute("transform", `translate(0,${open * 6})`);
-    const bl = (t % 3.4) < .11 ? .1 : 1; g.querySelector("#eyes").setAttribute("transform", `translate(0,${(1 - bl) * 6}) scale(1,${bl})`);
-    g.querySelector("#head").setAttribute("transform", `translate(115,${120 + (sp >= 0 ? Math.sin(t * 8) * 1.5 : Math.sin(t * 2) * 1.5)}) rotate(${Math.sin(t * 1.1) * 3})`);
+    const sp = speakingAt(t), open = sp >= 0 ? .25 + .75 * Math.abs(Math.sin(sp * Math.PI * 6.5)) : 0;
+    G3.render(t, open, true);
     tf(g, `translateY(${(1 - E.back(v)) * 200}px)`);
   });
 }
@@ -860,8 +686,6 @@ function finalCard() {
 
 /* =========================== BUILD =========================== */
 buildMap();
-island0(); island1(); island2(); island3(); island4();
-balloons(ST.balloons, ST.mapIn + 1.5, 16, 1);
 titleCard([["يوم الطفل", 140, "goldText"], ["رحلة استكشاف الحقوق 🚀", 74, "", 800]], ST.title, ST.dock, ST.mapIn, 470, .62);
 startButton(); mapTexts();
 speedLines(ST.dive + 1.6, LV[0].S + .4);
@@ -873,7 +697,11 @@ winScreen();
 hud(); dialog(); guide();
 finalCard();
 buildScore();
+const W3 = createWorld($("#gl"), P, TL);
 window.render = function (t) {
+  const vis3 = W3.visibility(t);
+  $("#gl").style.opacity = vis3;
+  if (vis3 > 0) W3.render(t); else W3.renderer.clear();
   const cam = camAt(t);
   $("#world").style.transform = `translate(540px,960px) scale(${cam.z}) translate(${-cam.x}px,${-cam.y}px)`;
   if (t < P.final + 1.5) drawSky(bg, t, cam, palette(t));

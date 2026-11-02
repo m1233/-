@@ -13,11 +13,23 @@ const FPS = 30, DUR = 420, W = 1080, H = 1920;
 const TL = JSON.parse(fs.readFileSync(path.join(BUILD, "timeline.json"), "utf8"));
 const PLAN = JSON.parse(fs.readFileSync(path.join(BUILD, "plan.json"), "utf8"));
 
+const http = require("http");
+const MIME = { ".js": "text/javascript", ".html": "text/html", ".ttf": "font/ttf", ".json": "application/json" };
+let server, PORT;
+function serve() {
+  if (server) return Promise.resolve();
+  server = http.createServer((q, s) => { const f = path.join(ROOT, decodeURIComponent(q.url.split("?")[0]));
+    fs.readFile(f, (e, d) => { if (e) { s.writeHead(404); s.end(); return; } s.writeHead(200, { "Content-Type": MIME[path.extname(f)] || "application/octet-stream" }); s.end(d); }); });
+  return new Promise(r => server.listen(0, "127.0.0.1", () => { PORT = server.address().port; r(); }));
+}
+const LAUNCH = { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] };
 async function openPage(browser) {
+  await serve();
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   page.on("pageerror", e => { console.error("PAGE ERROR:", e.message); process.exit(1); });
   await page.addInitScript(([tl, plan]) => { window.TL = tl; window.PLAN = plan; }, [TL, PLAN]);
-  await page.goto("file://" + path.join(__dirname, "scene.html"));
+  await page.goto(`http://127.0.0.1:${PORT}/src/scene.html`);
+  await page.waitForFunction(() => window.ready, null, { timeout: 120000 });
   await page.evaluate(() => window.ready);
   return page;
 }
@@ -26,13 +38,13 @@ function run(args) {
     .on("close", c => c ? rej(new Error("ffmpeg " + c)) : res()));
 }
 async function stills(times) {
-  const browser = await chromium.launch(); const page = await openPage(browser);
+  const browser = await chromium.launch(LAUNCH); const page = await openPage(browser);
   const dir = path.join(BUILD, "stills"); fs.mkdirSync(dir, { recursive: true });
   for (const t of times) { await page.evaluate(t => window.render(t), t); const f = path.join(dir, `t${t.toFixed(1).padStart(6, "0")}.png`); await page.screenshot({ path: f }); console.log(f); }
-  await browser.close();
+  await browser.close(); server.close();
 }
 async function range(f0, f1, name) {
-  const browser = await chromium.launch(); const page = await openPage(browser);
+  const browser = await chromium.launch(LAUNCH); const page = await openPage(browser);
   const file = path.join(BUILD, `${name}.mp4`);
   // warm up deterministic state for this range start
   const ff = spawn("ffmpeg", ["-y", "-hide_banner", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "mjpeg", "-i", "-",
@@ -47,7 +59,7 @@ async function range(f0, f1, name) {
   }
   ff.stdin.end();
   await new Promise((res, rej) => ff.on("close", c => c ? rej(new Error("ffmpeg " + c)) : res()));
-  await browser.close();
+  await browser.close(); server.close();
   console.log(`${name}: DONE`);
 }
 async function concat() {

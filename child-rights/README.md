@@ -12,12 +12,12 @@ Everything in this video was built from scratch in code: the illustrations, the 
 | `music-and-sfx-only.mp3` | The cheerful song and game sound effects, without the voice |
 | `full-mix-audio.mp3` | The final soundtrack exactly as it plays in the video |
 
-## Art direction (v2: semi-realistic)
-- No thick cartoon outlines. Every element is shaded with gradients, highlights and soft shadows to give it volume and lighting.
-- Custom drawn icons (more than 30, semi-realistic) replace the cartoon emoji, including in the titles (🚀🧠✨🍏💪🎤🎮🏠❤️🌟 are drawn as illustrations).
-- The characters (the guide, the doctor, the family, the girl on the swing) have realistic human proportions and shaded faces.
-- The interface uses sleek glass panels and the Cairo font throughout.
-- The teacher's name card matches the video: the same night background with stars, gold and pink accents, and a Kufi typeface in a gold gradient.
+## Art direction (v3: real 3D render, semi-realistic)
+- The worlds and characters are now a **real 3D render** (Three.js / WebGL). It uses physically based materials (skin, fabric, glass, metal, glossy fruit), image-based lighting with tone mapping, soft shadows, and warm key light with pink and blue rim lights.
+- **Characters** have realistic human proportions (adults about 7.4 heads tall, children about 5.4). Each has eyes with iris and pupil textures, blinking eyelids and lashes, lips that open with speech, hair, and clothing. They are animated: the doctor waves, the girl swings, the family holds hands.
+- **The guide (القائدة)** is a 3D bust with a gaming headset. Her lips are synced to every word of the narration.
+- Island elements rise in a real 3D pop-up motion, and the camera flies between the islands with vertical crane moves.
+- The interface uses glass panels and the Cairo font. The teacher's name card uses the video's night palette with gold accents and a Kufi typeface.
 
 ## Concept
 The video is a magic video game. «القائدة» (The Guide) is a cartoon girl with a gaming headset. She appears as a portrait in an RPG-style dialog box, and her mouth moves in sync with every word she speaks. A HUD stays on screen throughout: the level indicator, a ⭐ score that rises with every spoken word and every collected item, and four badge slots that unlock one by one.
@@ -49,6 +49,7 @@ python3 src/narration.py   # voice + word timestamps   -> build/timeline.json
 python3 src/plan.py        # scene cue sheet           -> build/plan.json
 python3 src/music.py       # music, SFX, ducking, mix  -> build/mix.wav + output/*.mp3
 for i in 0 1 2 3; do node src/render.js --range $((i*3150)) $(((i+1)*3150)) seg$i & done; wait
+npm install            # three.js
 node src/render.js --concat                        # -> output/child-rights-day-7min-9x16.mp4
 node src/render.js --stills 5,70,390               # preview PNGs
 ```
