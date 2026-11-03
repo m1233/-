@@ -2,3 +2,5 @@ build/
 node_modules/
 __pycache__/
 child-rights/output/child-rights-day-7min-9x16.mp4
+child-rights-3d/build/
+child-rights-3d/output/child-rights-day-3d-7min-9x16.mp4

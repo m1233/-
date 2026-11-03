@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>حقوق الطفل: يوم سعيد لكل طفل</title>
+<style>
+@font-face { font-family: "Cairo"; src: url("../assets/Cairo-Variable.ttf"); font-weight: 200 1000; }
+@font-face { font-family: "Kufi"; src: url("../assets/ReemKufi-Variable.ttf"); font-weight: 400 700; }
+:root { --blue: #8EC8FF; --pink: #FFB8DE; --yellow: #FFE58A; --ink: #2B2A5E; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #FBF8F1; }
+body { font-family: "Cairo", sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+canvas.full { position: absolute; left: 0; top: 0; }
+#world { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; }
+.grp { position: absolute; width: 1080px; height: 1920px; }
+.abs { position: absolute; }
+.layer { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 50% 70%; }
+svg { overflow: visible; display: block; }
+.ico { display: inline-block; vertical-align: middle; }
+.ico svg { width: 100%; height: 100%; }
+.glassL { background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78)); border: 3px solid rgba(255,255,255,.95);
+  box-shadow: 0 22px 60px rgba(90,80,160,.18), 0 4px 0 rgba(142,200,255,.35), inset 0 0 0 1px rgba(142,200,255,.35); }
+.pill { display: inline-flex; align-items: center; gap: 14px; padding: 8px 30px 12px; border-radius: 999px; white-space: nowrap; font-weight: 800; }
+/* 3D geometric kufi lettering */
+.k3d { font-family: "Kufi"; font-weight: 700; white-space: nowrap; line-height: 1.3; }
+.k3d.b { color: #4BA3F5; text-shadow: 0 2px 0 #2E78C8, 0 4px 0 #2E78C8, 0 6px 0 #2A6DB8, 0 8px 0 #2A6DB8, 0 10px 0 #245FA0, 0 18px 24px rgba(40,60,120,.28); }
+.k3d.p { color: #F77FB9; text-shadow: 0 2px 0 #D45C97, 0 4px 0 #D45C97, 0 6px 0 #C2508A, 0 8px 0 #C2508A, 0 10px 0 #A8437A, 0 18px 24px rgba(120,40,90,.28); }
+.k3d.y { color: #F7C531; text-shadow: 0 2px 0 #D9A21A, 0 4px 0 #D9A21A, 0 6px 0 #C58F12, 0 8px 0 #C58F12, 0 10px 0 #A87808, 0 18px 24px rgba(120,90,20,.28); }
+.k3d.n { color: #3B3A78; text-shadow: 0 2px 0 #C9C6EA, 0 4px 0 #BDB9E2, 0 10px 18px rgba(60,50,120,.22); }
+#cap { position: absolute; left: 44px; top: 1236px; width: 992px; min-height: 236px; border-radius: 44px; padding: 26px 40px 26px; }
+#capWords { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 18px; padding-left: 196px; min-height: 184px; }
+.tok { position: relative; display: inline-block; font-family: "Cairo"; font-size: 58px; font-weight: 900; line-height: 1.3; }
+#final { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" id="defs"></svg>
+<div id="stage">
+  <canvas id="bg" class="full" width="1080" height="1920"></canvas>
+  <div id="world"></div>
+  <div id="ov"></div>
+  <canvas id="fx" class="full" width="1080" height="1920"></canvas>
+  <div id="ov2" class="abs" style="inset:0"></div>
+  <div id="final"></div>
+  <div id="black" class="abs" style="inset:0;background:#FBF8F1;opacity:0"></div>
+</div>
+<script src="lib.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   Child Rights Day — magical flying-island game (7:00, 9:16)
+   Bright off-white world, pastel blue / pink / yellow, 3D kufi
+   kinetic type, Halai (ElevenLabs) voice + SFX, own music.
+   ============================================================ */
+const CH = Object.fromEntries(TL.chunks.map(c => [c.level, c]));
+const SC = { S0: 0, S1: 60, S2: 105, S3: 150, S4: 195, D1: 240, D2: 280, D3: 320, WIN: 360, FIN: 400 };
+const LVL = ["S1", "S2", "S3", "S4"];
+const UNLOCK = LVL.map(k => CH[k].end + 2.0);
+const SET = { S0: [540, 960], S1: [1940, 960], S2: [3340, 960], S3: [3340, -1100], S4: [4740, -1100], D1a: [540, 3300], D1b: [1940, 3300], D2: [3340, 3300], D3: [4740, 3300] };
+const BL = "#8EC8FF", PKc = "#FFB8DE", YL = "#FFE58A";
+
+/* ---------------- background: off-white with faint golden magic dust ---------------- */
+const bg = $("#bg").getContext("2d");
+const dust = Array.from({ length: 150 }, (_, i) => ({ x: hash(i, 1) * W, y: hash(i, 2) * H, r: .8 + Math.pow(hash(i, 3), 2) * 3.2, z: .2 + hash(i, 4) * .8, ph: hash(i, 5) * 6.28, star: hash(i, 6) < .28 }));
+function drawBG(t, cam, ctx = bg, slow = 1) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#FDFBF6"); g.addColorStop(.6, "#FBF8F1"); g.addColorStop(1, "#F6F2FB");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  [[200, 420, "142,200,255", .16, 620], [900, 1150, "255,184,222", .16, 660], [520, 1750, "255,229,138", .16, 600]].forEach(([x, y, c, a, r], i) => {
+    const xx = x + Math.sin(t * .06 * slow + i) * 60, yy = y + Math.cos(t * .05 * slow + i) * 50;
+    const rg = ctx.createRadialGradient(xx, yy, 10, xx, yy, r); rg.addColorStop(0, `rgba(${c},${a})`); rg.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
+  });
+  for (const s of dust) {
+    const x = ((s.x - cam.x * .05 * s.z * cam.z + Math.sin(t * .2 * slow + s.ph) * 14) % W + W) % W;
+    const y = ((s.y - cam.y * .05 * s.z * cam.z - t * 5 * s.z * slow) % H + H) % H;
+    const tw = Math.pow(Math.abs(Math.sin(t * (.6 + s.z) * slow + s.ph)), 3);
+    ctx.globalAlpha = (.2 + .8 * tw) * (.35 + .65 * s.z);
+    if (s.star) {
+      const r = s.r * 3 * (.6 + .6 * tw); ctx.fillStyle = "#F5C842";
+      ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r); ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill();
+    } else { ctx.fillStyle = "#F7D46A"; ctx.beginPath(); ctx.arc(x, y, s.r, 0, 6.283); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------------- camera ---------------- */
+const K = [];
+(function () {
+  const at = (k, dx = 0, dy = 0) => [SET[k][0] + dx, SET[k][1] + dy];
+  const push = (t, xy, z) => K.push([t, xy[0], xy[1], z]);
+  push(0, at("S0", 0, 120), 1.25); push(4, at("S0"), 1.0); push(27.5, at("S0", 0, -20), 1.05);
+  [[29.5, -260, -170], [35.5, -90, -200], [41.5, 110, -220], [47.5, 290, -170]].forEach(([t, dx, dy]) => { push(t, at("S0", dx, dy), 1.75); push(t + 4.2, at("S0", dx * 1.05, dy), 1.8); });
+  push(55.5, at("S0"), .95);
+  const seq = [["S1", 60, 105], ["S2", 105, 150], ["S3", 150, 195], ["S4", 195, 240]];
+  let prev = "S0";
+  seq.forEach(([k, a, b]) => {
+    push(a - 2.2, [(SET[prev][0] + SET[k][0]) / 2, (SET[prev][1] + SET[k][1]) / 2], .66);
+    push(a, at(k, 0, -60), 1.0); push(a + 3, at(k, 0, -20), 1.02); push(CH[k].end, at(k, 0, 30), 1.1); push(b - 4, at(k, 0, 60), 1.03);
+    prev = k;
+  });
+  push(237.5, [2600, 1100], .3);
+  push(240, at("D1a", 0, -40), 1.0); push(256.5, at("D1a", 0, 20), 1.08);
+  push(258, at("D1b", 0, -30), 1.0); push(278, at("D1b", 0, 30), 1.07);
+  push(280, at("D2", 0, -30), 1.0); push(318, at("D2", 0, 30), 1.08);
+  push(320, at("D3", 0, -30), 1.0); push(357.5, at("D3", 0, 40), 1.08);
+  push(360.5, [2640, 1100], .28); push(420, [2640, 1080], .27);
+  K.sort((a, b) => a[0] - b[0]);
+})();
+function camAt(t) {
+  let i = 0; while (i < K.length - 2 && t >= K[i + 1][0]) i++;
+  const a = K[i], b = K[i + 1], k = E.io(prog(t, a[0], b[0]));
+  return { x: lerp(a[1], b[1], k) + Math.sin(t * .55) * 5, y: lerp(a[2], b[2], k) + Math.cos(t * .43) * 6, z: Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), k)) };
+}
+
+/* ---------------- world sets ---------------- */
+const world = $("#world");
+function set(k, from, to) {
+  const [x, y] = SET[k], g = el("div", { class: "grp", style: `left:${x - 540}px;top:${y - 960}px` }, world);
+  on((t, cam) => { const vis = t >= from && t <= to && Math.abs(cam.x - x) < 1250 / cam.z && Math.abs(cam.y - y) < 1700 / cam.z; g.style.display = vis ? "block" : "none"; });
+  return g;
+}
+function layer(g, t0, i) {
+  const L = el("div", { class: "layer" }, g), tt0 = t0 + i * .25;
+  on(t => { const k = prog(t, tt0, tt0 + .9), e = E.back(k);
+    tf(L, `perspective(1600px) translateY(${(1 - E.out(k)) * 120}px) rotateX(${(1 - e) * 75}deg) scale(${lerp(.75, 1, E.out(k))})`); L.style.opacity = clamp(k * 3); });
+  return L;
+}
+const softShadow = (cx, cy, rx, ry, o = .22) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#shadow)" opacity="${o * 2}"/>`;
+const sparkle = (r, c = "#F5C842") => `<path d="M0 ${-r} Q0 0 ${r} 0 Q0 0 0 ${r} Q0 0 ${-r} 0 Q0 0 0 ${-r}Z" fill="${c}"/>`;
+function kidFace(cx, cy, r, hair, girl) { // laughing child face for bubbles
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#skin)"/>${girl ? `<circle cx="${cx - r * .95}" cy="${cy - r * .1}" r="${r * .35}" fill="${hair}"/><circle cx="${cx + r * .95}" cy="${cy - r * .1}" r="${r * .35}" fill="${hair}"/>` : ""}
+    <path d="M${cx - r} ${cy - r * .05} C${cx - r * 1.05} ${cy - r * 1.25},${cx + r * 1.05} ${cy - r * 1.25},${cx + r} ${cy - r * .05} C${cx + r * .7} ${cy - r * .55},${cx - r * .3} ${cy - r * .7},${cx - r} ${cy - r * .05}Z" fill="${hair}"/>
+    <path d="M${cx - r * .5} ${cy + r * .02} q${r * .17} ${-r * .2} ${r * .34} 0 M${cx + r * .16} ${cy + r * .02} q${r * .17} ${-r * .2} ${r * .34} 0" stroke="#3A2416" stroke-width="${r * .09}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx - r * .38} ${cy + r * .3} Q${cx} ${cy + r * .85} ${cx + r * .38} ${cy + r * .3}Z" fill="#9C3346"/><path d="M${cx - r * .2} ${cy + r * .58} Q${cx} ${cy + r * .72} ${cx + r * .2} ${cy + r * .58}" fill="#F38C9C"/>
+    <ellipse cx="${cx - r * .55}" cy="${cy + r * .32}" rx="${r * .18}" ry="${r * .1}" fill="#F7A0A8" opacity=".6"/><ellipse cx="${cx + r * .55}" cy="${cy + r * .32}" rx="${r * .18}" ry="${r * .1}" fill="#F7A0A8" opacity=".6"/>`;
+}
+function tree(x, y, s, g1 = "leaf") {
+  return `<g transform="translate(${x},${y}) scale(${s})">${softShadow(0, 4, 90, 14)}<rect x="-16" y="-170" width="32" height="174" rx="12" fill="url(#wood)"/>
+    ${[[-50, -210, 80], [40, -220, 85], [0, -280, 95], [-30, -330, 70], [45, -320, 66]].map(([a, b, r]) => `<circle cx="${a}" cy="${b}" r="${r}" fill="url(#${g1})"/>`).join("")}
+    ${[[-60, -240, 26], [20, -310, 22], [50, -240, 20]].map(([a, b, r]) => `<circle cx="${a}" cy="${b}" r="${r}" fill="#fff" opacity=".18"/>`).join("")}</g>`;
+}
+function palm(x, y, s) {
+  const seg = Array.from({ length: 9 }, (_, i) => { const k = i / 8; return `<ellipse cx="${Math.sin(k * 1.4) * 40}" cy="${-k * 330}" rx="${20 - k * 6}" ry="22" fill="url(#wood)"/>`; }).join("");
+  return `<g transform="translate(${x},${y}) scale(${s})">${softShadow(0, 6, 70, 12)}${seg}<g class="fr" transform="translate(40,-335)">${[-160, -120, -70, -20, 30, 80, 130].map((a, i) => `<path d="M0 0 C 60 -46, 140 -34, 196 22 C 150 4, 80 6, 0 0Z" fill="url(#${i % 2 ? "leaf" : "leafD"})" transform="rotate(${a})"/>`).join("")}
+    <circle cx="-12" cy="14" r="16" fill="url(#wood)"/><circle cx="14" cy="18" r="16" fill="url(#wood)"/></g></g>`;
+}
+function schoolBuilding(x, y, s) { // y = ground
+  return `<g transform="translate(${x},${y}) scale(${s})">${softShadow(0, 6, 380, 34)}
+    <rect x="-360" y="-300" width="720" height="300" rx="10" fill="url(#wall)"/><rect x="-360" y="-300" width="720" height="26" fill="#fff" opacity=".5"/>
+    <rect x="-130" y="-470" width="260" height="470" rx="10" fill="url(#wall)"/><path d="M-160 -470 L0 -580 L160 -470Z" fill="url(#shirtPink)"/><path d="M0 -580 L160 -470 L180 -480Z" fill="#000" opacity=".12"/>
+    <path d="M-390 -300 L-360 -340 L-130 -340 L-130 -300Z M390 -300 L360 -340 L130 -340 L130 -300Z" fill="url(#shirtPink)"/>
+    <circle cx="0" cy="-400" r="54" fill="#fff"/><circle cx="0" cy="-400" r="48" fill="url(#page)"/><g id="clk"><line x1="0" y1="-400" x2="0" y2="-436" stroke="#3B3A78" stroke-width="7" stroke-linecap="round"/><line x1="0" y1="-400" x2="24" y2="-400" stroke="#3B3A78" stroke-width="7" stroke-linecap="round"/></g>
+    <line x1="0" y1="-580" x2="0" y2="-680" stroke="#8C95A6" stroke-width="7"/><path class="flag" fill="url(#shirtYellow)"/>
+    ${[-300, -210, 150, 240].map(xx => `<rect x="${xx}" y="-250" width="62" height="74" rx="8" fill="url(#window)"/><rect x="${xx}" y="-140" width="62" height="74" rx="8" fill="url(#window)"/><rect x="${xx}" y="-250" width="62" height="10" fill="#fff" opacity=".5"/><rect x="${xx}" y="-140" width="62" height="10" fill="#fff" opacity=".5"/>`).join("")}
+    <path d="M-70 0 V-160 Q0 -230 70 -160 V0Z" fill="url(#door)"/><path d="M0 -205 V0" stroke="#fff" stroke-width="5" opacity=".6"/>
+    <rect x="-110" y="-12" width="220" height="16" rx="6" fill="#E6E2F2"/><rect x="-130" y="2" width="260" height="14" rx="6" fill="#D9D4EC"/>
+    <circle cx="0" cy="-160" r="160" fill="url(#glowY)" opacity=".35"/></g>`;
+}
+function bed(x, y, s, blanket = "shirtBlue") {
+  return `<g transform="translate(${x},${y}) scale(${s})">${softShadow(0, 6, 260, 26)}<rect x="-250" y="-210" width="40" height="210" rx="14" fill="url(#wood)"/><rect x="210" y="-150" width="40" height="150" rx="14" fill="url(#wood)"/>
+    <rect x="-220" y="-110" width="440" height="80" rx="18" fill="#fff"/><path d="M-220 -100 Q0 -150 220 -100 V-30 H-220Z" fill="url(#${blanket})"/>
+    <rect x="-212" y="-150" width="110" height="48" rx="22" fill="#FFF7EC"/><rect x="-230" y="-30" width="460" height="22" rx="8" fill="url(#wood)"/></g>`;
+}
+function sofa(x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})">${softShadow(0, 4, 300, 26)}<rect x="-280" y="-220" width="560" height="140" rx="50" fill="url(#shirtPurple)"/><rect x="-300" y="-140" width="600" height="110" rx="40" fill="url(#shirtPurple)"/>
+    <rect x="-330" y="-180" width="80" height="170" rx="36" fill="url(#shirtPurple)"/><rect x="250" y="-180" width="80" height="170" rx="36" fill="url(#shirtPurple)"/>
+    <rect x="-240" y="-200" width="110" height="80" rx="24" fill="url(#shirtYellow)"/><rect x="130" y="-200" width="110" height="80" rx="24" fill="url(#shirtPink)"/></g>`;
+}
+function fireplace(x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})">${softShadow(0, 4, 230, 20)}<rect x="-220" y="-330" width="440" height="330" rx="12" fill="#D9CFC4"/>
+    ${Array.from({ length: 5 }, (_, r) => Array.from({ length: 4 }, (_, c) => `<rect x="${-210 + c * 108 + (r % 2) * 50}" y="${-320 + r * 64}" width="96" height="54" rx="8" fill="#E8E0D6" opacity=".9"/>`).join("")).join("")}
+    <rect x="-250" y="-360" width="500" height="40" rx="10" fill="url(#wood)"/><path d="M-130 0 V-150 Q0 -230 130 -150 V0Z" fill="#2B2230"/>
+    <g id="fire"><path class="fl1" fill="#FF9A3C"/><path class="fl2" fill="#FFD36A"/></g><circle cx="0" cy="-60" r="230" fill="url(#glowY)" opacity=".55" class="fglow"/></g>`;
+}
+function windowNight(x, y, w, h, day) {
+  return `<g transform="translate(${x},${y})"><rect x="-10" y="-10" width="${w + 20}" height="${h + 20}" rx="18" fill="#fff"/><rect x="0" y="0" width="${w}" height="${h}" rx="10" fill="url(#${day ? "wall" : "orbDeep"})"/>
+    ${day ? `<circle cx="${w * .7}" cy="${h * .45}" r="${h * .2}" fill="url(#glowY)"/><circle cx="${w * .7}" cy="${h * .45}" r="${h * .12}" fill="#FFD36A"/>` : `<circle cx="${w * .7}" cy="${h * .35}" r="${h * .12}" fill="#FFF3C4"/>${[[.2, .3], [.35, .6], [.5, .2], [.15, .75]].map(([a, b]) => `<circle cx="${w * a}" cy="${h * b}" r="3" fill="#fff"/>`).join("")}`}
+    <path d="M${w / 2} 0 V${h} M0 ${h / 2} H${w}" stroke="#fff" stroke-width="8"/></g>`;
+}
+function room(wallTop, wallBot) {
+  return `<defs><linearGradient id="rw${FIG}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${wallTop}"/><stop offset="1" stop-color="${wallBot}"/></linearGradient></defs>
+    <rect x="40" y="340" width="1000" height="860" rx="40" fill="url(#rw${FIG})"/><path d="M40 1040 H1040 V1160 Q1040 1200 1000 1200 H80 Q40 1200 40 1160Z" fill="#E9D6C2"/>
+    <path d="M40 1040 H1040" stroke="#fff" stroke-width="6" opacity=".7"/><rect x="40" y="340" width="1000" height="860" rx="40" fill="none" stroke="#fff" stroke-width="10"/>`;
+}
+
+/* ===== S0: flying island with the four landmarks ===== */
+function setS0() {
+  const g = set("S0", 0, 60), L0 = layer(g, .3, 0), L1 = layer(g, .3, 1), L2 = layer(g, .3, 2);
+  svgEl(L0, 1080, 1920, `${cloudPuffs(170, 1240, 380, .95)}${cloudPuffs(910, 1210, 360, .95)}${floatingRock(540, 900, 940)}${cloudPuffs(540, 1360, 520, .9)}`, "left:0;top:0");
+  svgEl(L1, 1080, 1920, `${schoolBuilding(270, 890, .3)}${palm(420, 885, .55)}${palm(470, 880, .42)}
+    <g transform="translate(640,885)"><path d="M-70 0 L-40 -190 L40 -190 L70 0" fill="none" stroke="url(#shirtBlue)" stroke-width="12"/><line x1="-30" y1="-185" x2="-30" y2="-60" stroke="#9AA3B8" stroke-width="3"/><line x1="30" y1="-185" x2="30" y2="-60" stroke="#9AA3B8" stroke-width="3"/><rect x="-42" y="-64" width="84" height="12" rx="5" fill="url(#wood)"/></g>
+    <g transform="translate(830,885) scale(1.15)">${iconG("house", 0, -80, .85)}</g>
+    ${tree(120, 890, .32)}${tree(960, 890, .3, "leafD")}`, "left:0;top:0");
+  const lab = [["المستوى 1", 270, 29.5], ["المستوى 2", 440, 35.5], ["المستوى 3", 640, 41.5], ["المستوى 4", 830, 47.5]].map(([n, x, t0]) => {
+    const d = el("div", { class: "abs", style: `left:${x}px;top:610px` }, L2, `<div class="pill glassL" style="font-size:30px;color:#3B3A78">${icon("lock", 34)}${n}</div>`);
+    on(t => { const k = popScale(t, t0 + .4, .6); d.style.opacity = clamp(prog(t, t0 + .4, t0 + .8)); tf(d, `translate(-50%,-50%) scale(${k * .9})`); });
+    return d;
+  });
+  const sp = svgEl(L2, 1080, 1920, Array.from({ length: 18 }, () => `<g class="s">${sparkle(14)}</g>`).join(""), "left:0;top:0");
+  on(t => {
+    if (g.style.display === "none") return;
+    tf(L1, `${L1.style.transform} translateY(${Math.sin(t * 1.1) * 8}px)`);
+    sp.querySelectorAll(".s").forEach((s, i) => { const ph = (t * .25 + i / 18) % 1; s.setAttribute("transform", `translate(${120 + (i * 53) % 840},${900 - ph * 600}) scale(${Math.sin(ph * Math.PI)})`); });
+  });
+}
+/* ===== S1: school of knowledge ===== */
+function setS1() {
+  const s0 = SC.S1, g = set("S1", s0 - 4, s0 + 47), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
+  svgEl(L0, 1080, 1920, `<circle cx="540" cy="720" r="560" fill="url(#glowB)" opacity=".25"/>${floatingRock(540, 1090, 1000)}${cloudPuffs(150, 1210, 300)}${cloudPuffs(940, 1190, 280)}`, "left:0;top:0");
+  const kid = figure({ h: 290, kid: true, top: "shirtYellow", sleeve: "#E9B92E", bottom: "shirtBlue", hair: "pony", hairG: "hairBrown", aR: -150, bR: -10 });
+  const sch = svgEl(L1, 1080, 1920, `${schoolBuilding(540, 1080, .95)}${tree(120, 1085, .55)}${tree(960, 1085, .5, "leafD")}<g transform="translate(830,1090)">${kid.svg}${iconG("backpack", -10, -150, .32)}</g>`, "left:0;top:0");
+  const BK = ["bookR", "bookB", "bookY", "bookG", "bookP", "bookK"];
+  const books = svgEl(L2, 1080, 1920, BK.map(b => `<g class="bk"><g transform="translate(-60,-20)">${book3d(0, 0, 110, 34, 14, b)}</g><circle r="70" fill="url(#glowY)" opacity=".35"/></g>`).join("") +
+    Array.from({ length: 26 }, () => `<g class="st">${sparkle(16)}</g>`).join(""), "left:0;top:0");
+  const flag = sch.querySelector(".flag");
+  on(t => {
+    if (g.style.display === "none") return;
+    const w = Math.sin(t * 5) * 8; flag.setAttribute("d", `M540 ${1080 - .95 * 680} q${36} ${-8 + w} ${72} ${w} q-36 ${22} -72 ${30}Z`.replace("M540", `M${540}`));
+    flag.setAttribute("transform", `translate(0,0)`);
+    sch.querySelector("#clk").setAttribute("transform", `rotate(${t * 6} 0 -400)`);
+    const u = sch.querySelector(`.${kid.id}Ru`), f = sch.querySelector(`.${kid.id}Rf`); u.setAttribute("transform", `rotate(${-150 + Math.sin(t * 2) * 5})`); f.setAttribute("transform", `rotate(${Math.sin(t * 6) * 25})`);
+    books.querySelectorAll(".bk").forEach((b, i) => { const ph = (t * .16 + i / 6) % 1, sx = [380, 470, 610, 700, 540, 540][i], sy = 840;
+      const x = sx + Math.sin(ph * 4 + i) * 220 * ph, y = sy - ph * 620;
+      b.setAttribute("transform", `translate(${x},${y}) rotate(${Math.sin(t * 2 + i) * 25}) scale(${Math.sin(Math.min(1, ph * 1.4) * Math.PI) * .9 + .1})`); b.setAttribute("opacity", Math.sin(ph * Math.PI)); });
+    books.querySelectorAll(".st").forEach((s, i) => { const ph = (t * .3 + i / 26) % 1, a = i * 2.4;
+      s.setAttribute("transform", `translate(${540 + Math.cos(a) * (120 + ph * 360)},${800 - ph * 560}) scale(${Math.sin(ph * Math.PI) * (.6 + hash(i) * .8)})`); });
+  });
+}
+/* ===== S2: medical oasis ===== */
+function setS2() {
+  const s0 = SC.S2, g = set("S2", s0 - 4, s0 + 47), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
+  svgEl(L0, 1080, 1920, `<circle cx="540" cy="700" r="560" fill="url(#glowY)" opacity=".22"/>${floatingRock(540, 1060, 1000)}
+    <ellipse cx="560" cy="1090" rx="230" ry="58" fill="url(#sand)"/><ellipse cx="560" cy="1092" rx="196" ry="44" fill="url(#water)"/><ellipse class="rip" cx="560" cy="1092" rx="120" ry="28" fill="none" stroke="#fff" stroke-width="3"/>`, "left:0;top:0");
+  const doc = figure({ h: 470, coat: true, top: "coat", sleeve: "#E9EEF6", bottom: "pants", hairG: "hairBlack", aR: -140, bR: -20, aL: 14, bL: -8 });
+  const mid = svgEl(L1, 1080, 1920, palm(170, 1060, 1.0) + palm(360, 1040, .78) + `<g transform="translate(810,1080)">${doc.svg}</g>`, "left:0;top:0");
+  const heart = svgEl(L2, 400, 400, `<g transform="translate(200,200)"><circle class="hg" r="190" fill="url(#glowP)"/><g class="hp">${iconG("heart", 0, 0, 1.45)}<rect x="-14" y="-40" width="28" height="80" rx="6" fill="#fff"/><rect x="-40" y="-14" width="80" height="28" rx="6" fill="#fff"/></g></g>`, "left:340px;top:330px");
+  const FR = ["apple", "banana", "carrot", "strawberry", "grapes", "orange", "apple", "strawberry"].map(f => svgEl(L2, 130, 130, `<g transform="scale(.65)">${ICONS[f]()}</g>`, "left:0;top:0"));
+  on(t => {
+    if (g.style.display === "none") return;
+    const beat = (t * 1.2) % 1, pulse = 1 + .09 * Math.exp(-beat * 9);
+    heart.querySelector(".hp").setAttribute("transform", `scale(${pulse})`); heart.querySelector(".hg").setAttribute("transform", `scale(${.8 + beat * .35})`); heart.querySelector(".hg").setAttribute("opacity", .6 * (1 - beat) + .2);
+    tf(heart, `translateY(${Math.sin(t * 1.3) * 12}px)`);
+    FR.forEach((e, i) => { const a = t * .35 + i * .785; tf(e, `translate(${540 + Math.cos(a) * 410 - 65}px,${570 + Math.sin(a) * 200 - 65}px) rotate(${Math.sin(t * 1.4 + i) * 18}deg) scale(${.85 + .3 * Math.sin(a)})`); e.style.zIndex = Math.sin(a) > 0 ? 3 : 1; });
+    mid.querySelector(`.${doc.id}Ru`).setAttribute("transform", `rotate(${-140 + Math.sin(t * 2) * 4})`); mid.querySelector(`.${doc.id}Rf`).setAttribute("transform", `rotate(${-10 + Math.sin(t * 6) * 26})`);
+    mid.querySelectorAll(".fr").forEach((f, i) => f.setAttribute("transform", `translate(40,-335) rotate(${Math.sin(t * 1.3 + i) * 4})`));
+    const r = (t * .6) % 1, rip = g.querySelector(".rip"); rip.setAttribute("rx", 40 + r * 160); rip.setAttribute("ry", 10 + r * 36); rip.setAttribute("opacity", .6 * (1 - r));
+  });
+}
+/* ===== S3: playground above the clouds ===== */
+function setS3() {
+  const s0 = SC.S3, g = set("S3", s0 - 4, s0 + 47), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
+  const rb = ["#FF8FA8", "#FFB870", "#FFE58A", "#9AF2C6", "#8EC8FF", "#C9A8FF"];
+  svgEl(L0, 1080, 1920, rb.map((c, i) => `<path d="M${80 + i * 26} 1030 A ${460 - i * 26} ${460 - i * 26} 0 0 1 ${1000 - i * 26} 1030" fill="none" stroke="${c}" stroke-width="28" opacity=".7"/>`).join("") + cloudPuffs(540, 1110, 1020) + cloudPuffs(290, 1210, 540) + cloudPuffs(820, 1220, 500), "left:0;top:0");
+  const k1 = figure({ h: 280, kid: true, top: "shirtYellow", sleeve: "#E9B92E", bottom: "shirtBlue", hair: "pony", hairG: "hairBrown", aL: 168, bL: 0, aR: -168, bR: 0, legScale: .6 });
+  const k2 = figure({ h: 270, kid: true, top: "shirtMint", sleeve: "#3FC690", bottom: "pants", hairG: "hairBlack", aL: 168, bL: 0, aR: -168, bR: 0, legScale: .6 });
+  const swing = (id, x, kid) => `<g class="${id}" transform="translate(${x},330)"><line x1="-70" y1="0" x2="-70" y2="440" stroke="#C9B49A" stroke-width="6"/><line x1="70" y1="0" x2="70" y2="440" stroke="#C9B49A" stroke-width="6"/>
+     <g transform="translate(0,${440 + 280 * .26})">${kid.svg}</g><rect x="-100" y="432" width="200" height="22" rx="8" fill="url(#wood)"/></g>`;
+  const sw = svgEl(L1, 1080, 1920, `<path d="M180 320 H900" stroke="url(#shirtPink)" stroke-width="22" stroke-linecap="round"/>${cloudPuffs(180, 330, 220)}${cloudPuffs(900, 330, 220)}${swing("sa", 380, k1)}${swing("sb", 700, k2)}`, "left:0;top:0");
+  const faces = [["#5A3A20", 1], ["#1C1C22", 0], ["#8A5A3A", 1], ["#3A2416", 0], ["#6A3E22", 1], ["#2A1810", 0]];
+  const bub = faces.map(([h, gl], i) => svgEl(L2, 180, 180, `<circle cx="90" cy="90" r="86" fill="url(#glassOrb)"/>${kidFace(90, 96, 46, h, gl)}<circle cx="90" cy="90" r="86" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="3"/><path d="M38 52 Q58 24 96 20" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".8" fill="none"/>`, "left:0;top:0"));
+  const balls = Array.from({ length: 4 }, () => svgEl(L2, 120, 120, `<g transform="scale(.6)">${ICONS.ball()}</g>`, "left:0;top:0"));
+  on(t => {
+    if (g.style.display === "none") return;
+    sw.querySelector(".sa").setAttribute("transform", `translate(380,330) rotate(${Math.sin(t * 1.8) * 20})`); sw.querySelector(".sb").setAttribute("transform", `translate(700,330) rotate(${Math.sin(t * 1.8 + 2) * 20})`);
+    bub.forEach((b, i) => { const ph = (t * .1 + i / 6) % 1, x = 150 + i * 156 + Math.sin(t * 1.2 + i) * 40, y = 1120 - ph * 860, s = .55 + .45 * Math.sin(ph * Math.PI);
+      tf(b, `translate(${x - 90}px,${y - 90}px) scale(${s * (1 + Math.sin(t * 4 + i) * .03)},${s * (1 - Math.sin(t * 4 + i) * .03)})`); b.style.opacity = Math.min(1, Math.sin(ph * Math.PI) * 2); });
+    balls.forEach((b, i) => { const ph = (t * (.45 + i * .08) + i * .3) % 1, x = 120 + ((t * (70 + i * 25) + i * 230) % 840), y = 1100 - Math.abs(Math.sin(ph * Math.PI)) * (240 + i * 50);
+      tf(b, `translate(${x - 60}px,${y - 60}px) rotate(${t * 120 + i * 50}deg)`); });
+  });
+}
+/* ===== S4: warm safe home (interior) ===== */
+function familyGroup(scale = 1) {
+  const dad = figure({ h: 480 * scale, top: "shirtBlue", sleeve: "#3F80CF", hairG: "hairBlack", aL: 8, bL: -4, aR: -34, bR: -8 });
+  const mom = figure({ h: 450 * scale, female: true, hair: "long", top: "shirtPurple", sleeve: "#8A62E0", hairG: "hairDark", aL: 34, bL: 8, aR: -8, bR: 4 });
+  const girl = figure({ h: 300 * scale, kid: true, hair: "pony", top: "shirtPink", sleeve: "#E06EA2", bottom: "shirtPurple", hairG: "hairBrown", aL: 30, bL: 6, aR: -30, bR: -6 });
+  const boy = figure({ h: 280 * scale, kid: true, top: "shirtMint", sleeve: "#3FC690", bottom: "pants", hairG: "hairBlack", aL: 30, bL: 6, aR: -30, bR: -6 });
+  return `<g class="pp" data-x="${-220 * scale}">${dad.svg}</g><g class="pp" data-x="${220 * scale}">${mom.svg}</g><g class="pp" data-x="${-75 * scale}">${girl.svg}</g><g class="pp" data-x="${80 * scale}">${boy.svg}</g>`;
+}
+function animFamily(root, t, baseY) { root.querySelectorAll(".pp").forEach((p, i) => p.setAttribute("transform", `translate(${+p.dataset.x},${Math.sin(t * 2 + i) * 3})`)); }
+function animFire(root, t) {
+  const f1 = root.querySelector(".fl1"), f2 = root.querySelector(".fl2"); if (!f1) return;
+  const w = (a, s) => Math.sin(t * s + a) * 10;
+  f1.setAttribute("d", `M-90 0 C-100 -60,-40 -90,-50 -150 C-20 -110,-10 -170,0 -200 C10 -150,40 -130,40 -${160 + w(1, 7)} C70 -110,100 -70,90 0Z`);
+  f2.setAttribute("d", `M-50 0 C-60 -40,-20 -60,-20 -${100 + w(2, 9)} C0 -70,20 -90,22 -${120 + w(3, 8)} C40 -80,60 -40,50 0Z`);
+  root.querySelector(".fglow").setAttribute("opacity", .45 + .15 * Math.sin(t * 6) * Math.sin(t * 2.3));
+}
+function setS4() {
+  const s0 = SC.S4, g = set("S4", s0 - 4, s0 + 47), L0 = layer(g, s0 + .2, 0), L1 = layer(g, s0 + .2, 1), L2 = layer(g, s0 + .2, 2);
+  svgEl(L0, 1080, 1920, room("#FFE9D2", "#FFD7C2") + windowNight(110, 470, 230, 260, false) + `<rect x="760" y="460" width="170" height="130" rx="10" fill="#fff"/><rect x="772" y="472" width="146" height="106" rx="6" fill="url(#shirtMint)"/>${iconG("heart", 845, 525, .3)}
+    <ellipse cx="540" cy="1120" rx="420" ry="60" fill="url(#shirtPink)" opacity=".55"/>`, "left:0;top:0");
+  const fp = svgEl(L1, 1080, 1920, fireplace(540, 1040, .9) + sofa(800, 1110, .55), "left:0;top:0");
+  const fam = svgEl(L2, 1080, 1920, `<g class="fam" transform="translate(470,1160)">${familyGroup(.95)}</g>` + Array.from({ length: 10 }, () => `<g class="ht">${iconG("heart", 0, 0, .18)}</g>`).join(""), "left:0;top:0");
+  on(t => {
+    if (g.style.display === "none") return;
+    animFire(fp, t); animFamily(fam, t);
+    fam.querySelectorAll(".ht").forEach((h, i) => { const ph = (t * .2 + i / 10) % 1; h.setAttribute("transform", `translate(${300 + (i * 67) % 380 + Math.sin(t + i) * 20},${880 - ph * 420}) scale(${Math.sin(ph * Math.PI)})`); });
+  });
+}
+/* ===== D1: morning — bedroom, then classroom ===== */
+function setD1() {
+  const ga = set("D1a", 236, 260), L0 = layer(ga, 240.1, 0), L1 = layer(ga, 240.1, 1);
+  svgEl(L0, 1080, 1920, room("#E3F1FF", "#CFE6FF") + windowNight(640, 450, 300, 300, true) + `<g transform="translate(200,600)"><rect x="-60" y="-70" width="120" height="120" rx="60" fill="#fff"/><circle r="50" fill="url(#page)"/><line x1="0" y1="0" x2="0" y2="-34" stroke="#3B3A78" stroke-width="6"/><line x1="0" y1="0" x2="22" y2="8" stroke="#3B3A78" stroke-width="6"/></g>`, "left:0;top:0");
+  const kid = figure({ h: 300, kid: true, top: "shirtYellow", sleeve: "#E9B92E", bottom: "shirtBlue", hairG: "hairBrown", hair: "pony", aL: 150, bL: 20, aR: -150, bR: -20, legScale: .01 });
+  const bd = svgEl(L1, 1080, 1920, `${bed(540, 1130, 1.25)}<g class="kid" transform="translate(470,1020)">${kid.svg}</g><path d="M300 1020 Q540 960 800 1010 V1100 H300Z" fill="url(#shirtBlue)"/>${Array.from({ length: 8 }, () => `<g class="sp">${sparkle(18)}</g>`).join("")}`, "left:0;top:0");
+  on(t => {
+    if (ga.style.display === "none") return;
+    const s = Math.sin(t * 2.2); bd.querySelector(`.${kid.id}Lu`).setAttribute("transform", `rotate(${150 + s * 12})`); bd.querySelector(`.${kid.id}Ru`).setAttribute("transform", `rotate(${-150 - s * 12})`);
+    bd.querySelector(".kid").setAttribute("transform", `translate(470,${1020 + Math.abs(s) * -6})`);
+    bd.querySelectorAll(".sp").forEach((p, i) => { const ph = (t * .4 + i / 8) % 1; p.setAttribute("transform", `translate(${420 + Math.cos(i * 1.7) * (80 + ph * 160)},${760 - ph * 180}) scale(${Math.sin(ph * Math.PI)})`); });
+  });
+  const gb = set("D1b", 256, 281), M0 = layer(gb, 258.1, 0), M1 = layer(gb, 258.1, 1);
+  svgEl(M0, 1080, 1920, room("#FFF4D6", "#FFE7B8") + `<rect x="150" y="430" width="560" height="320" rx="18" fill="url(#wood)"/><rect x="170" y="450" width="520" height="280" rx="10" fill="#2F6B55"/>
+    <text x="430" y="620" text-anchor="middle" font-family="Cairo" font-weight="800" font-size="92" fill="#F4F7EF" opacity=".92">٢ + ٣ = ٥</text><circle cx="600" cy="520" r="34" fill="none" stroke="#FFE58A" stroke-width="6" opacity=".9"/>
+    <path d="M260 680 l40 -60 l40 60z" fill="none" stroke="#FFB8DE" stroke-width="6"/>${iconG("planet", 870, 560, .6)}`, "left:0;top:0");
+  const teacher = figure({ h: 470, female: true, hair: "long", top: "shirtPurple", sleeve: "#8A62E0", hairG: "hairDark", aR: -120, bR: -30 });
+  const desk = (x, kidO, raise) => { const k = figure({ ...kidO, aR: raise ? -165 : -20, bR: raise ? -5 : -40, legScale: .4 }); return { k, s: `<g transform="translate(${x},1150)"><g transform="translate(0,-10)">${k.svg}</g><rect x="-110" y="-150" width="220" height="24" rx="8" fill="url(#wood)"/><rect x="-100" y="-130" width="200" height="130" rx="6" fill="url(#wood)" opacity=".85"/>${iconG("books", -40, -170, .25)}</g>` }; };
+  const d1 = desk(320, { h: 270, kid: true, top: "shirtPink", sleeve: "#E06EA2", hair: "pony", hairG: "hairBrown" }, true), d2 = desk(620, { h: 260, kid: true, top: "shirtMint", sleeve: "#3FC690", hairG: "hairBlack" }, false);
+  const cls = svgEl(M1, 1080, 1920, `<g transform="translate(860,1120)">${teacher.svg}</g>${d1.s}${d2.s}`, "left:0;top:0");
+  on(t => {
+    if (gb.style.display === "none") return;
+    cls.querySelector(`.${d1.k.id}Rf`).setAttribute("transform", `rotate(${-5 + Math.sin(t * 5) * 14})`);
+    cls.querySelector(`.${teacher.id}Ru`).setAttribute("transform", `rotate(${-120 + Math.sin(t * 1.5) * 8})`);
+  });
+}
+/* ===== D2: evening park ===== */
+function setD2() {
+  const g = set("D2", 276, 321), L0 = layer(g, 280.1, 0), L1 = layer(g, 280.1, 1), L2 = layer(g, 280.1, 2);
+  svgEl(L0, 1080, 1920, `<circle cx="820" cy="480" r="200" fill="url(#glowY)"/><circle cx="820" cy="480" r="90" fill="#FFD36A"/>${cloudPuffs(220, 520, 300, .95)}
+    <path d="M0 960 Q300 860 600 930 T1080 900 V1300 H0Z" fill="url(#grass)"/><path d="M0 1040 Q400 960 1080 1040 V1300 H0Z" fill="#5FC27A"/>${tree(150, 1000, .8)}${tree(930, 990, .7, "leafD")}${tree(560, 950, .5)}`, "left:0;top:0");
+  const kids = [["shirtPink", "#E06EA2", "pony", "hairBrown", 270], ["shirtMint", "#3FC690", "", "hairBlack", 260], ["shirtYellow", "#E9B92E", "pony", "hairDark", 280], ["shirtBlue", "#3F80CF", "", "hairBrown", 265]]
+    .map(([top, sl, hr, hg, h]) => figure({ h, kid: true, top, sleeve: sl, hair: hr, hairG: hg, aL: 50, aR: -50 }));
+  const run = svgEl(L1, 1080, 1920, kids.map((k, i) => `<g class="rk" data-i="${i}">${k.svg}</g>`).join("") +
+    `<g class="kite"><path d="M0 -60 L40 0 L0 70 L-40 0Z" fill="url(#shirtPink)"/><path d="M0 -60 V70 M-40 0 H40" stroke="#fff" stroke-width="3"/><path class="ks" fill="none" stroke="#fff" stroke-width="2.5"/></g>`, "left:0;top:0");
+  const ball = svgEl(L2, 120, 120, `<g transform="scale(.55)">${ICONS.ball()}</g>`, "left:0;top:0");
+  const bf = svgEl(L2, 1080, 1920, Array.from({ length: 5 }, (_, i) => `<g class="bf"><ellipse rx="16" ry="10" fill="${[PKc, BL, YL, "#C9A8FF", "#9AF2C6"][i]}" transform="translate(-10,0) rotate(-30)"/><ellipse rx="16" ry="10" fill="${[PKc, BL, YL, "#C9A8FF", "#9AF2C6"][i]}" transform="translate(10,0) rotate(30)"/></g>`).join(""), "left:0;top:0");
+  on(t => {
+    if (g.style.display === "none") return;
+    run.querySelectorAll(".rk").forEach((r, i) => { const x = 120 + ((t - 280) * (60 + i * 12) + i * 230) % 860, y = 1160 + i % 2 * 40 - Math.abs(Math.sin(t * 8 + i)) * 22;
+      r.setAttribute("transform", `translate(${x},${y}) scale(${i % 2 ? -1 : 1},1)`); const k = kids[i];
+      r.querySelector(`.${k.id}Lu`).setAttribute("transform", `rotate(${40 * Math.sin(t * 8 + i)})`); r.querySelector(`.${k.id}Ru`).setAttribute("transform", `rotate(${-40 * Math.sin(t * 8 + i)})`); });
+    const kx = 760 + Math.sin(t * .8) * 60, ky = 620 + Math.cos(t * 1.1) * 40; run.querySelector(".kite").setAttribute("transform", `translate(${kx},${ky}) rotate(${Math.sin(t * 1.3) * 12})`);
+    run.querySelector(".ks").setAttribute("d", `M0 70 Q${-200} ${300} ${-300 + (kx - 760)} ${520}`);
+    const ph = (t * .7) % 1; tf(ball, `translate(${300 + ((t - 280) * 90) % 520 - 60}px,${1180 - Math.abs(Math.sin(ph * Math.PI)) * 200 - 60}px) rotate(${t * 200}deg)`);
+    bf.querySelectorAll(".bf").forEach((b, i) => { const s = .5 + .5 * Math.abs(Math.sin(t * 12 + i)); b.setAttribute("transform", `translate(${200 + i * 160 + Math.sin(t * .9 + i) * 80},${780 + Math.cos(t * 1.2 + i * 2) * 70}) scale(${s},1)`); });
+  });
+}
+/* ===== D3: cosy kid room, family together ===== */
+function setD3() {
+  const g = set("D3", 316, 362), L0 = layer(g, 320.1, 0), L1 = layer(g, 320.1, 1), L2 = layer(g, 320.1, 2);
+  svgEl(L0, 1080, 1920, room("#F3E8FF", "#E6D6FF") + windowNight(700, 440, 260, 280, false) + `<rect x="120" y="470" width="300" height="20" rx="6" fill="url(#wood)"/>${iconG("books", 200, 430, .4)}${iconG("balloon", 340, 420, .35)}
+    <rect x="120" y="620" width="300" height="20" rx="6" fill="url(#wood)"/>${iconG("gamepad", 210, 590, .35)}${iconG("star", 340, 585, .3)}
+    <ellipse cx="540" cy="1120" rx="420" ry="60" fill="url(#shirtBlue)" opacity=".4"/>`, "left:0;top:0");
+  const lamp = svgEl(L1, 1080, 1920, `${bed(760, 1100, .9, "shirtPink")}<g transform="translate(150,1050)"><rect x="-8" y="-210" width="16" height="210" fill="url(#metal)"/><path d="M-60 -200 L60 -200 L40 -280 L-40 -280Z" fill="url(#shirtYellow)"/><circle cx="0" cy="-200" r="200" class="lg" fill="url(#glowY)"/></g>`, "left:0;top:0");
+  const fam = svgEl(L2, 1080, 1920, `<g transform="translate(470,1180)">${familyGroup(.95)}</g>` + Array.from({ length: 8 }, () => `<g class="ht">${iconG("heart", 0, 0, .16)}</g>`).join(""), "left:0;top:0");
+  on(t => {
+    if (g.style.display === "none") return;
+    animFamily(fam, t); lamp.querySelector(".lg").setAttribute("opacity", .6 + .1 * Math.sin(t * 2));
+    fam.querySelectorAll(".ht").forEach((h, i) => { const ph = (t * .2 + i / 8) % 1; h.setAttribute("transform", `translate(${320 + (i * 71) % 340},${900 - ph * 380}) scale(${Math.sin(ph * Math.PI)})`); });
+  });
+}
+
+/* =========================== OVERLAY UI =========================== */
+const ov = $("#ov"), ov2 = $("#ov2");
+function balloons(t0, t1, n, seed) {
+  const box = el("div", { class: "abs", style: "inset:0" }, ov);
+  const bs = Array.from({ length: n }, (_, i) => {
+    const z = .4 + hash(i, seed) * .75;
+    const b = svgEl(box, 200, 400, `<path d="M100 250 C 88 280, 114 310, 96 340 C 84 360, 104 380, 100 398" fill="none" stroke="rgba(120,120,170,.45)" stroke-width="2"/>
+      <ellipse cx="100" cy="128" rx="86" ry="106" fill="url(#${i % 2 ? "balloonP" : "balloonB"})"/><ellipse cx="68" cy="78" rx="16" ry="30" fill="#fff" opacity=".65" transform="rotate(-25 68 78)"/>
+      <ellipse cx="128" cy="190" rx="26" ry="12" fill="#fff" opacity=".15" transform="rotate(-30 128 190)"/><path d="M90 232 L110 232 L104 244 L96 244Z" fill="${i % 2 ? "#932A5C" : "#183F80"}"/>`, "left:0;top:0");
+    return { b, z, x: hash(i, seed + 1) * 1000 - 40, sp: 110 + hash(i, seed + 2) * 90, ph: hash(i, seed + 3) * 6.28, off: hash(i, seed + 4) * 900 };
+  });
+  bs.sort((a, b) => a.z - b.z).forEach(o => { box.appendChild(o.b); o.b.style.filter = o.z < .6 ? "blur(3px)" : "none"; });
+  on(t => { const v = win(t, t0, t1, .3, 1.5); box.style.display = v > 0 ? "block" : "none"; if (!v) return;
+    bs.forEach(o => { tf(o.b, `translate(${o.x + Math.sin(t * .9 + o.ph) * 40}px,${2050 - (((t - t0) * o.sp * o.z + o.off) % 2500)}px) scale(${o.z}) rotate(${Math.sin(t * 1.2 + o.ph) * 7}deg)`); o.b.style.opacity = v * (.55 + .45 * o.z); }); });
+}
+/* 3D kufi title: words pop one by one, then dock to the top */
+function kTitle(text, tIn, tDock, tOut, size = 92, dockY = 400, dockS = .6, colors = ["b", "p", "y"], startY = 840) {
+  const box = el("div", { class: "abs", style: "left:540px;top:0;text-align:center;width:1000px" }, ov);
+  const lines = text.split("\n").map((ln, li) => {
+    const row = el("div", { style: `display:flex;justify-content:center;flex-wrap:wrap;gap:0 22px;margin-bottom:6px` }, box);
+    return ln.split(" ").map((w, wi) => { const sp = el("span", { class: `k3d ${colors[(li + wi) % colors.length]}`, style: `display:inline-block;font-size:${li ? size * .72 : size}px` }, row, iconize(w, size * .8)); return sp; });
+  }).flat();
+  on(t => {
+    const d = E.io(prog(t, tDock, tDock + 1)), o = prog(t, tOut, tOut + .6), v = prog(t, tIn - .1, tIn + .2) * (1 - o);
+    op(box, v); if (!v) return;
+    tf(box, `translate(-50%,-50%) translateY(${lerp(startY, dockY, d)}px) scale(${lerp(1, dockS, d) * (1 - o * .3)})`);
+    lines.forEach((s, i) => { const k = prog(t, tIn + i * .16, tIn + i * .16 + .7); s.style.opacity = clamp(k * 3);
+      tf(s, `perspective(900px) translateY(${(1 - E.out(k)) * 60}px) rotateX(${(1 - E.back(k)) * -70}deg) rotateY(${Math.sin(t * 1.2 + i) * 6}deg) scale(${lerp(.4, 1, E.back(k))})`); });
+  });
+}
+function startButton() {
+  const b = el("div", { class: "abs k3d y", style: "left:540px;top:1430px;padding:22px 80px 34px;border-radius:999px;font-size:84px;-webkit-text-stroke:0;color:#7A4A00;text-shadow:0 2px 0 #FFF3B0;background:linear-gradient(180deg,#FFF6C8 0%,#FFE07A 45%,#F5C23C 100%);box-shadow:0 0 90px rgba(255,210,80,.75), 0 14px 0 #D9A21A, 0 30px 40px rgba(120,90,20,.3), inset 0 4px 0 rgba(255,255,255,.9)" }, ov, "اضغط للبدء");
+  const ring = el("div", { class: "abs", style: "left:540px;top:1430px;width:600px;height:190px;border-radius:999px;border:6px solid #FFE58A" }, ov);
+  const tap = el("div", { class: "abs", style: "left:0;top:0;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95) 0,rgba(255,255,255,.4) 45%,rgba(255,255,255,0) 70%);border:4px solid rgba(255,200,80,.9)" }, ov);
+  on(t => {
+    const k = prog(t, 3.6, 4.2), gone = prog(t, 5.35, 5.8), press = t > 4.95 && t < 5.2 ? .9 : 1;
+    op(b, clamp(k * 3) * (1 - gone)); tf(b, `translate(-50%,-50%) scale(${E.back(k) * press * (1 + Math.sin(t * 6) * .025) * (1 + gone * .4)})`);
+    const rk = prog(t, 5, 5.8); op(ring, rk > 0 && rk < 1 ? 1 - rk : 0); tf(ring, `translate(-50%,-50%) scale(${1 + rk * .8})`);
+    const ti = prog(t, 4.55, 4.9), to = prog(t, 5.15, 5.5); op(tap, ti * (1 - to)); tf(tap, `translate(${600 - 65}px,${1450 - 65}px) scale(${lerp(1.6, .8, E.out(ti)) * (1 + to * .8)})`);
+  });
+}
+/* HUD: level pill + four right badges */
+const SLOTS = ["books", "apple", "balloon", "house"];
+function hud() {
+  const h = el("div", { class: "abs", style: "inset:0" }, ov2);
+  const lvl = el("div", { class: "abs pill glassL", style: "right:50px;top:176px;font-size:42px;color:#3B3A78" }, h);
+  const slots = SLOTS.map((s, i) => el("div", { class: "abs glassL", style: `left:${50 + i * 112}px;top:168px;width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center` }, h, icon(s, 66)));
+  on(t => {
+    const v = prog(t, 5.6, 6.2) * (1 - prog(t, SC.FIN - .5, SC.FIN + .5)); op(h, v); if (!v) return;
+    let name = ["rocket", "الانطلاق"];
+    LVL.forEach((k, i) => { if (t >= SC[k] - 1) name = ["gamepad", `المستوى ${i + 1}`]; });
+    if (t >= SC.D1 - 1) name = ["star", "يوميات مستكشف"]; if (t >= SC.WIN - 1) name = ["trophy", "الفوز!"];
+    const key = name.join(); if (lvl._n !== key) { lvl.innerHTML = icon(name[0], 50) + `<span>${name[1]}</span>`; lvl._n = key; }
+    slots.forEach((d, i) => { const k = prog(t, UNLOCK[i] + 1.6, UNLOCK[i] + 2.1);
+      d.style.filter = k > 0 ? "none" : "grayscale(1) opacity(.45)"; d.style.boxShadow = k > 0 ? `0 0 ${26 + 8 * Math.sin(t * 4)}px rgba(255,200,80,.8)` : ""; tf(d, `scale(${k > 0 ? E.el(k) : 1})`); });
+  });
+}
+/* level unlocked toast + badge flight */
+function unlockToast(i) {
+  const t0 = UNLOCK[i];
+  const b = el("div", { class: "abs pill glassL", style: "left:540px;top:1110px;font-size:50px;color:#3B3A78" }, ov2, icon("unlock", 60) + `<span>تم فتح المستوى ${i + 1}!</span>` + icon("star", 56));
+  const fly = el("div", { class: "abs", style: "left:0;top:0" }, ov2, icon(SLOTS[i], 130));
+  on(t => {
+    const k = prog(t, t0, t0 + .6), o = prog(t, t0 + 2.6, t0 + 3.0); op(b, clamp(k * 3) * (1 - o)); tf(b, `translate(-50%,-50%) scale(${E.back(k)})`);
+    const fk = E.io(prog(t, t0 + .8, t0 + 1.8)), tx = 100 + i * 112, ty = 218;
+    op(fly, fk > 0 && fk < 1 ? 1 : 0); tf(fly, `translate(${lerp(540, tx, fk) - 65}px,${lerp(980, ty, fk) - 65 - Math.sin(fk * Math.PI) * 180}px) scale(${lerp(1.2, .5, fk)}) rotate(${fk * 360}deg)`);
+  });
+}
+/* guide portrait (Pixar-style girl) + caption box with kinetic words */
+function speakingAt(t) { for (const c of TL.chunks) { if (t < c.start - .05 || t > c.end + .05) continue; for (const w of c.words) if (t >= w.t && t <= w.t + w.d) return t - w.t; } return -1; }
+const WINS = TL.chunks.map(c => [c.start, c.end]);
+const capVis = t => { let v = 0; WINS.forEach(([a, b]) => { v = Math.max(v, win(t, a - .7, b + 1.4, .45, .5)); }); return v; };
+const PAGES = [];
+TL.chunks.forEach(c => { const ws = c.words, n = ws.length, per = n <= 6 ? n : Math.ceil(n / Math.ceil(n / 6));
+  for (let i = 0; i < n; i += per) PAGES.push({ words: ws.slice(i, i + per), base: i, start: ws[i].t, end: ws[Math.min(n, i + per) - 1].t + ws[Math.min(n, i + per) - 1].d }); });
+function caption() {
+  const d = el("div", { id: "cap", class: "glassL" }, ov2), box = el("div", { id: "capWords" }, d);
+  const COL = [["#4BA3F5", "#2E78C8"], ["#F77FB9", "#C2508A"], ["#F2B21C", "#C58F12"]];
+  let cur = -1, toks = [];
+  on(t => {
+    const v = capVis(t); op(d, v); if (!v) return; tf(d, `translateY(${(1 - E.out(v)) * 240}px)`);
+    let pi = -1; PAGES.forEach((p, i) => { if (t >= p.start - .25) pi = i; }); if (pi < 0) return;
+    if (pi !== cur) { cur = pi; box.innerHTML = ""; const pg = PAGES[pi]; toks = pg.words.map((w, j) => { const s = el("span", { class: "tok" }, box, w.w); s.w = w; s.c = COL[(pg.base + j) % 3]; return s; }); }
+    const pg = PAGES[cur], pf = 1 - prog(t, pg.end + .9, pg.end + 1.3);
+    toks.forEach(s => {
+      const w = s.w, k = prog(t, w.t - .05, w.t + .35), live = t >= w.t - .05 && t <= w.t + w.d + .1;
+      s.style.opacity = clamp(k * 3) * pf;
+      tf(s, `perspective(600px) rotateX(${(1 - E.back(k)) * -60}deg) translateY(${(1 - E.out(k)) * 26}px) scale(${k <= 0 ? .4 : E.back(k) * (live ? 1.12 : 1)})`);
+      s.style.color = live ? s.c[0] : "#3B3A78";
+      s.style.textShadow = live ? `0 2px 0 ${s.c[1]}, 0 4px 0 ${s.c[1]}, 0 6px 0 ${s.c[1]}, 0 10px 16px rgba(60,50,120,.3)` : `0 2px 0 #D9D5F0, 0 4px 8px rgba(60,50,120,.15)`;
+    });
+  });
+}
+function guide() {
+  const g = svgEl(ov2, 230, 280, `<defs><clipPath id="gclip"><circle cx="115" cy="115" r="106"/></clipPath>
+    <radialGradient id="gbg" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".6" stop-color="#CFE6FF"/><stop offset="1" stop-color="#FFB8DE"/></radialGradient></defs>
+    <circle cx="115" cy="115" r="112" fill="url(#gold)"/><circle cx="115" cy="115" r="106" fill="url(#gbg)"/>
+    <g clip-path="url(#gclip)"><g id="head" transform="translate(115,120)">
+      <path d="M-66 -10 C-80 60,-70 110,-40 130 L40 130 C70 110,80 60,66 -10Z" fill="url(#hairBrown)"/>
+      <path d="M-78 150 C-70 106,-34 92,0 92 C34 92,70 106,78 150Z" fill="url(#shirtPink)"/><rect x="-14" y="56" width="28" height="40" fill="url(#skinD)"/>
+      <ellipse cx="-52" cy="8" rx="9" ry="14" fill="url(#skinD)"/><ellipse cx="52" cy="8" rx="9" ry="14" fill="url(#skinD)"/>
+      <path d="M0 -62 C48 -62,54 6,44 32 C36 54,18 70,0 70 C-18 70,-36 54,-44 32 C-54 6,-48 -62,0 -62Z" fill="url(#skin)"/>
+      <ellipse cx="-27" cy="28" rx="12" ry="7" fill="#F29A9A" opacity=".45"/><ellipse cx="27" cy="28" rx="12" ry="7" fill="#F29A9A" opacity=".45"/>
+      <g id="eyes">${[-1, 1].map(s => `<ellipse cx="${s * 19}" cy="6" rx="13" ry="10" fill="#fff"/><circle cx="${s * 19}" cy="7" r="8" fill="url(#iris)"/><circle cx="${s * 19}" cy="7" r="3.6" fill="#120804"/><circle cx="${s * 19 + 3}" cy="3.5" r="2.6" fill="#fff"/><circle cx="${s * 19 - 3}" cy="10" r="1.2" fill="#fff"/>
+        <path d="M${s * 19 - 14} 3 Q${s * 19} -8 ${s * 19 + 14} 3" stroke="#2A160C" stroke-width="3" fill="none" stroke-linecap="round"/>`).join("")}</g>
+      ${[-1, 1].map(s => `<path d="M${s * 19 - 12} -12 Q${s * 19} -17 ${s * 19 + 12} -12" stroke="#5A3420" stroke-width="3.2" fill="none" stroke-linecap="round"/>`).join("")}
+      <path d="M-2 16 Q2 26 6 24" stroke="#C88466" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <g transform="translate(0,42)"><ellipse id="mo" cx="0" cy="0" rx="12" ry="2" fill="#7A1E30"/><path d="M-13 0 Q0 -5 13 0" stroke="#C25B66" stroke-width="3" fill="none" stroke-linecap="round"/><path id="bl" d="M-12 1 Q0 8 12 1" stroke="#C25B66" stroke-width="3.4" fill="none" stroke-linecap="round"/></g>
+      <path d="M-50 10 C-60 -56,-20 -74,4 -72 C40 -72,62 -48,50 10 C46 -20,30 -38,12 -40 C0 -26,-24 -22,-36 -30 C-44 -20,-48 -8,-50 10Z" fill="url(#hairBrown)"/>
+      <path d="M-20 -60 Q10 -70 34 -54" stroke="#fff" stroke-width="3" opacity=".25" fill="none"/>
+      <circle cx="-56" cy="-26" r="12" fill="url(#shirtPink)"/><circle cx="56" cy="-26" r="12" fill="url(#shirtPink)"/>
+    </g></g>
+    <rect x="45" y="214" width="140" height="46" rx="23" fill="url(#shirtPink)"/><text x="115" y="246" text-anchor="middle" font-family="Cairo" font-weight="900" font-size="28" fill="#fff">المستكشفة</text>`, "left:30px;top:1105px");
+  on(t => {
+    const v = capVis(t); op(g, v); if (!v) return;
+    const sp = speakingAt(t), open = sp >= 0 ? .3 + .7 * Math.abs(Math.sin(sp * Math.PI * 6.5)) : 0;
+    g.querySelector("#mo").setAttribute("ry", 1.5 + open * 8); g.querySelector("#bl").setAttribute("transform", `translate(0,${open * 6.5})`);
+    const bl = (t % 3.4) < .11 ? .1 : 1; g.querySelector("#eyes").setAttribute("transform", `translate(0,${(1 - bl) * 6}) scale(1,${bl})`);
+    g.querySelector("#head").setAttribute("transform", `translate(115,${120 + (sp >= 0 ? Math.sin(t * 8) * 1.5 : Math.sin(t * 2) * 1.5)}) rotate(${Math.sin(t * 1.1) * 3})`);
+    tf(g, `translateY(${(1 - E.back(v)) * 200}px)`);
+  });
+}
+/* diary chapter chips */
+function chip(text, ic, t0, t1) {
+  const c = el("div", { class: "abs pill glassL", style: "left:540px;top:400px;font-size:52px;color:#3B3A78" }, ov, icon(ic, 64) + `<span>${text}</span>`);
+  on(t => { const v = win(t, t0, t1, .5, .5); op(c, v); tf(c, `translate(-50%,-50%) scale(${popScale(t, t0, .6)})`); });
+}
+/* whoosh flash between scenes */
+function flashes() {
+  const f = el("div", { class: "abs", style: "inset:0;background:radial-gradient(circle at 50% 45%, rgba(255,255,255,.95), rgba(255,240,200,.6) 45%, rgba(255,255,255,0) 75%)" }, ov2);
+  const T = [SC.S1, SC.S2, SC.S3, SC.S4, SC.D1, 258, SC.D2, SC.D3, SC.WIN];
+  on(t => { let v = 0; T.forEach(s => { const k = prog(t, s - .45, s + .35); if (k > 0 && k < 1) v = Math.max(v, Math.sin(k * Math.PI) * .75); }); op(f, v); });
+}
+/* confetti */
+const fx = $("#fx").getContext("2d");
+const CC = ["#FFE58A", "#FFB8DE", "#8EC8FF", "#9AF2C6", "#FF8FA8", "#C9A8FF", "#FFB870"];
+const BURSTS = UNLOCK.map(u => ({ t: u, n: 90, dur: 3.8, rain: false })).concat([{ t: SC.WIN, n: 280, dur: SC.FIN - SC.WIN + 1, rain: true }]);
+function drawFX(t) {
+  fx.clearRect(0, 0, W, H);
+  BURSTS.forEach((b, bi) => { const dt = t - b.t; if (dt < 0 || dt > b.dur) return; const fade = 1 - prog(dt, b.dur - 1.2, b.dur);
+    for (let i = 0; i < b.n; i++) { let x, y;
+      if (b.rain) { const sp = 200 + hash(i, bi + 3) * 260, tt = dt - hash(i, bi + 4) * 1.5; if (tt < 0) continue; x = hash(i, bi + 1) * 1180 - 50 + Math.sin(tt * 2 + i) * 50; y = ((tt * sp + hash(i, bi + 5) * 300) % 2200) - 150; }
+      else { const a = hash(i, bi + 1) * 6.283, v = 900 + hash(i, bi + 2) * 1100; x = 540 + Math.cos(a) * v * dt * .55; y = 1000 + Math.sin(a) * v * dt * .55 - 600 * dt + 700 * dt * dt; }
+      const flip = Math.cos(dt * (5 + hash(i, 11) * 5) + i); fx.save(); fx.translate(x, y); fx.rotate(dt * (3 + hash(i, 9) * 6) + i); fx.scale(1, flip); fx.globalAlpha = fade;
+      fx.fillStyle = CC[i % CC.length]; if (i % 5 === 0) { fx.beginPath(); fx.arc(0, 0, 8, 0, 6.283); fx.fill(); } else fx.fillRect(-12, -5, 24, 10); fx.restore(); } });
+  fx.globalAlpha = 1;
+}
+/* victory screen */
+function winScreen() {
+  const W0 = SC.WIN, F = SC.FIN, box = el("div", { class: "abs", style: "inset:0" }, ov);
+  el("div", { class: "abs", style: "inset:0;background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.96), rgba(251,248,241,.9) 60%, rgba(246,242,251,.85))" }, box);
+  const tro = svgEl(box, 560, 560, `<g transform="translate(280,280)"><circle r="280" fill="url(#glowY)" opacity=".7"/><g id="rays">${Array.from({ length: 18 }, (_, i) => `<path d="M-12 0 L0 -270 L12 0Z" fill="${i % 2 ? PKc : YL}" opacity=".55" transform="rotate(${i * 20})"/>`).join("")}</g><g transform="translate(-170,-180) scale(1.7)">${ICONS.trophy()}</g></g>`, "left:260px;top:250px");
+  const OI = ["books", "school", "apple", "stethoscope", "balloon", "mic", "house", "heart"];
+  const orb = OI.map(i => svgEl(box, 150, 150, `<g transform="scale(.75)">${ICONS[i]()}</g>`, "left:0;top:0"));
+  const kids = [["shirtPink", "#E06EA2", "pony", "hairBrown"], ["shirtMint", "#3FC690", "", "hairBlack"], ["shirtYellow", "#E9B92E", "pony", "hairDark"], ["shirtBlue", "#3F80CF", "", "hairBrown"], ["shirtPurple", "#8A62E0", "pony", "hairBlack"]]
+    .map(([top, sl, hr, hg]) => figure({ h: 230, kid: true, top, sleeve: sl, hair: hr, hairG: hg, aL: 160, aR: -160 }));
+  const row = svgEl(box, 1080, 1920, kids.map((k, i) => `<g class="jk" data-x="${180 + i * 180}">${k.svg}</g>`).join(""), "left:0;top:0");
+  el("div", { class: "abs", style: "left:540px;top:910px;transform:translate(-50%,-50%);text-align:center" }, box);
+  kTitle("تهانينا! أنت طفل رائع ومميز 🌟\nوكل طفل يستحق السعادة", W0 + .8, 1e9, F - .2, 80, 0, 1, ["p", "b", "y"], 960);
+  on(t => {
+    const v = win(t, W0 - .3, F + 1.6, .6, 1.6); box.style.display = v > 0 ? "block" : "none"; if (!v) return; op(box, v);
+    const rec = E.io(prog(t, F - .2, F + 1.6)), sk = popScale(t, W0 + .2, .9);
+    tro.querySelector("#rays").setAttribute("transform", `rotate(${t * 18}) scale(${1 + .06 * Math.sin(t * 3)})`);
+    tf(tro, `translateY(${Math.sin(t * 2) * 10 - rec * 200}px) scale(${sk * (1 - rec * .5)})`);
+    orb.forEach((e, i) => { const a = t * .8 + i / OI.length * 6.283, dp = Math.sin(a), r = popScale(t, W0 + .6 + i * .12, .6) * (1 - rec * .6);
+      tf(e, `translate(${540 + Math.cos(a) * 420 * r - 75}px,${530 + dp * 150 * r - 75}px) scale(${(.7 + .4 * (dp + 1) / 2) * r})`); e.style.zIndex = dp > 0 ? 3 : 0; e.style.opacity = (.55 + .45 * (dp + 1) / 2) * (1 - rec); });
+    row.querySelectorAll(".jk").forEach((j, i) => { const jy = Math.abs(Math.sin(t * 4 + i * .9)) * 40; j.setAttribute("transform", `translate(${+j.dataset.x},${1740 - jy}) scale(${popScale(t, W0 + 1.2 + i * .15, .6)})`); });
+    row.style.opacity = 1 - rec;
+  });
+}
+/* closing card: pure white, kufi, silent voice */
+function finalCard() {
+  const F = SC.FIN, f = $("#final");
+  const sky = el("canvas", { width: 1080, height: 1920, class: "full" }, f), sc = sky.getContext("2d");
+  const card = el("div", { class: "abs", style: "left:540px;top:960px;width:860px;padding:90px 60px 100px;border-radius:40px;text-align:center;background:#FFFFFF;box-shadow:0 40px 120px rgba(120,100,180,.18), 0 0 0 2px rgba(240,230,210,.9), inset 0 0 0 16px #fff, inset 0 0 0 18px rgba(230,205,150,.6)" }, f);
+  const orn = c => `<path d="M0 30 H110 M190 30 H300" stroke="#E2C27A" stroke-width="3"/><g transform="translate(150,30)">${Array.from({ length: 8 }, (_, i) => `<path d="M0 -24 L5 -6 L0 0 L-5 -6Z" fill="url(#gold)" transform="rotate(${i * 45})"/>`).join("")}<circle r="6" fill="${c}"/></g>`;
+  svgEl(card, 300, 60, orn(PKc), "position:relative;margin:0 auto 34px;width:300px;height:60px");
+  const a = el("div", { style: "font-family:Kufi;font-weight:500;font-size:72px;color:#B08A45" }, card, "إعداد المعلمة");
+  const b = el("div", { style: "font-family:Kufi;font-weight:700;font-size:150px;color:#2B2A5E;line-height:1.35;margin-top:8px" }, card, "فاطمة خلف");
+  svgEl(card, 300, 60, orn(BL), "position:relative;margin:34px auto 0;width:300px;height:60px");
+  on(t => {
+    const v = prog(t, F - .3, F + 1.4); op(f, v); if (!v) return;
+    drawBG(t, { x: 0, y: 0, z: 1 }, sc, .25);
+    const ck = E.out(prog(t, F + 1.0, F + 3.0)); card.style.opacity = ck; tf(card, `translate(-50%,-50%) translateY(${(1 - ck) * 40}px) scale(${lerp(.95, 1, ck)})`);
+    a.style.opacity = prog(t, F + 1.6, F + 3.0); b.style.opacity = prog(t, F + 2.2, F + 3.8);
+    $("#black").style.opacity = E.io(prog(t, 417.5, 420));
+  });
+}
+
+/* =========================== BUILD =========================== */
+setS0(); setS1(); setS2(); setS3(); setS4(); setD1(); setD2(); setD3();
+balloons(5.2, 40, 16, 1);
+kTitle("حقوق الطفل:\nيوم سعيد لكل طفل 🚀", 2.4, 5.6, 28.5, 110, 470, .62, ["b", "p", "y"], 520);
+startButton();
+kTitle("حقك أن تتعلم وتكبر 🧠✨", SC.S1 + 1.0, SC.S1 + 3.4, SC.S2 - 2.4, 96);
+kTitle("جسد قوي وعقل ذكي 🍏💪", SC.S2 + 1.0, SC.S2 + 3.4, SC.S3 - 2.4, 96);
+kTitle("العب.. عبّر..\nوتحدث بحرية 🎤🎈", SC.S3 + 1.0, SC.S3 + 3.4, SC.S4 - 2.4, 104);
+kTitle("الأمان هو سر سعادتنا 🏠❤️", SC.S4 + 1.0, SC.S4 + 3.4, SC.D1 - 2.4, 92);
+chip("الصباح والمدرسة", "school", SC.D1 + .6, SC.D2 - .6); chip("المساء واللعب", "ball", SC.D2 + .6, SC.D3 - .6); chip("العودة للمنزل الدافئ", "house", SC.D3 + .6, SC.WIN - .6);
+LVL.forEach((k, i) => unlockToast(i));
+balloons(SC.WIN + .2, SC.FIN + .5, 14, 7);
+winScreen();
+flashes(); hud(); caption(); guide(); finalCard();
+window.render = function (t) {
+  const cam = camAt(t);
+  $("#world").style.transform = `translate(540px,960px) scale(${cam.z}) translate(${-cam.x}px,${-cam.y}px)`;
+  if (t < SC.FIN + 1.5) drawBG(t, cam);
+  for (const f of anims) f(t, cam);
+  drawFX(t);
+};
+window.ready = document.fonts.ready.then(() => Promise.all(["Cairo", "Kufi"].map(f => document.fonts.load(`40px ${f}`, "أبجد")))).then(() => { window.render(0); return true; });
+</script>
+</body>
+</html>
