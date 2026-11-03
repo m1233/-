@@ -54,7 +54,7 @@ async def template(text):
 
 
 async def main():
-    paras = [p.strip() for p in open(os.path.join(B, "script.txt"), encoding="utf-8").read().split("\n\n")]
+    paras = [p.strip() for p in open(os.path.join(ROOT, "config", "script.txt"), encoding="utf-8").read().split("\n\n")]
     paras[0] = re.sub(r"\[.*?\]\s*", "", paras[0])
     D = dur(TAKE); sil = silences(TAKE)
     tot = sum(len(p) for p in paras); cum = 0; cuts = [0.0]

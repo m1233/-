@@ -58,7 +58,7 @@ const SCN = TL.scenes, TOTAL = TL.duration;
 const SC = Object.fromEntries(Object.entries(SCN).map(([k, v]) => [k, v.start]));
 const END = k => SCN[k].start + SCN[k].dur;
 const D1MID = SC.D1 + SCN.D1.dur * .45;
-const TOUR0 = CH.S0.end + 2.0, TOURSTEP = Math.max(2.5, (END("S0") - 5 - TOUR0) / 4);
+const TOUR0 = CH.S0.end + 2.0, TOUR = END("S0") - 5 - TOUR0 >= 10, TOURSTEP = TOUR ? (END("S0") - 5 - TOUR0) / 4 : 0;
 const LVL = ["S1", "S2", "S3", "S4"];
 const UNLOCK = LVL.map(k => CH[k].end + 2.0);
 const SET = { S0: [540, 960], S1: [1940, 960], S2: [3340, 960], S3: [3340, -1100], S4: [4740, -1100], D1a: [540, 3300], D1b: [1940, 3300], D2: [3340, 3300], D3: [4740, 3300] };
@@ -94,8 +94,8 @@ const K = [];
   const at = (k, dx = 0, dy = 0) => [SET[k][0] + dx, SET[k][1] + dy];
   const push = (t, xy, z) => K.push([t, xy[0], xy[1], z]);
   push(0, at("S0", 0, 120), 1.25); push(4, at("S0"), 1.0); push(TOUR0 - .5, at("S0", 0, -20), 1.05);
-  [[-260, -170], [-90, -200], [110, -220], [290, -170]].forEach(([dx, dy], i) => { const t = TOUR0 + i * TOURSTEP; push(t + 1.2, at("S0", dx, dy), 1.75); push(t + TOURSTEP * .85, at("S0", dx * 1.05, dy), 1.8); });
-  push(END("S0") - 4.5, at("S0"), .95);
+  if (TOUR) [[-260, -170], [-90, -200], [110, -220], [290, -170]].forEach(([dx, dy], i) => { const t = TOUR0 + i * TOURSTEP; push(t + 1.2, at("S0", dx, dy), 1.75); push(t + TOURSTEP * .85, at("S0", dx * 1.05, dy), 1.8); });
+  push(Math.max(TOUR0, END("S0") - 4.5), at("S0"), .95);
   const seq = ["S1", "S2", "S3", "S4"].map(k => [k, SC[k], END(k)]);
   let prev = "S0";
   seq.forEach(([k, a, b]) => {
@@ -196,7 +196,7 @@ function setS0() {
     <g transform="translate(640,885)"><path d="M-70 0 L-40 -190 L40 -190 L70 0" fill="none" stroke="url(#shirtBlue)" stroke-width="12"/><line x1="-30" y1="-185" x2="-30" y2="-60" stroke="#9AA3B8" stroke-width="3"/><line x1="30" y1="-185" x2="30" y2="-60" stroke="#9AA3B8" stroke-width="3"/><rect x="-42" y="-64" width="84" height="12" rx="5" fill="url(#wood)"/></g>
     <g transform="translate(830,885) scale(1.15)">${iconG("house", 0, -80, .85)}</g>
     ${tree(120, 890, .32)}${tree(960, 890, .3, "leafD")}`, "left:0;top:0");
-  const lab = [["المستوى 1", 270], ["المستوى 2", 440], ["المستوى 3", 640], ["المستوى 4", 830]].map(([n, x], i) => { const t0 = TOUR0 + i * TOURSTEP + 1.2;
+  const lab = [["المستوى 1", 270], ["المستوى 2", 440], ["المستوى 3", 640], ["المستوى 4", 830]].map(([n, x], i) => { const t0 = TOUR ? TOUR0 + i * TOURSTEP + 1.2 : 1e9;
     const d = el("div", { class: "abs", style: `left:${x}px;top:610px` }, L2, `<div class="pill glassL" style="font-size:30px;color:#3B3A78">${icon("lock", 34)}${n}</div>`);
     on(t => { const k = popScale(t, t0 + .4, .6); d.style.opacity = clamp(prog(t, t0 + .4, t0 + .8)); tf(d, `translate(-50%,-50%) scale(${k * .9})`); });
     return d;
@@ -555,8 +555,8 @@ function finalCard() {
 
 /* =========================== BUILD =========================== */
 setS0(); setS1(); setS2(); setS3(); setS4(); setD1(); setD2(); setD3();
-balloons(5.2, TOUR0 + 10, 16, 1);
-kTitle("حقوق الطفل:\nيوم سعيد لكل طفل 🚀", 2.4, 5.6, TOUR0 - .8, 110, 470, .62, ["b", "p", "y"], 520);
+balloons(5.2, Math.min(TOUR0 + 10, END("S0") - 1), 16, 1);
+kTitle("حقوق الطفل:\nيوم سعيد لكل طفل 🚀", 2.4, 5.6, Math.min(TOUR0 - .8, END("S0") - 2.4), 110, 470, .62, ["b", "p", "y"], 520);
 startButton();
 kTitle("حقك أن تتعلم وتكبر 🧠✨", SC.S1 + 1.0, SC.S1 + 3.4, END("S1") - 2.4, 96);
 kTitle("جسد قوي وعقل ذكي 🍏💪", SC.S2 + 1.0, SC.S2 + 3.4, END("S2") - 2.4, 96);

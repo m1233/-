@@ -1,15 +1,65 @@
 {
-  "_comment": "Scene durations in seconds. Edit and run ./build.sh. voice_offset = seconds after the scene starts before the narration begins.",
-  "scenes": [
-    {"id": "S0",  "name": "شاشة انطلاق اللعبة السحرية",        "duration": 60, "voice_offset": 6},
-    {"id": "S1",  "name": "الحق في التعليم",                   "duration": 45, "voice_offset": 3},
-    {"id": "S2",  "name": "الحق في الرعاية الصحية",            "duration": 45, "voice_offset": 3},
-    {"id": "S3",  "name": "الحق في اللعب والتعبير",            "duration": 45, "voice_offset": 3},
-    {"id": "S4",  "name": "الحق في الأمان",                    "duration": 45, "voice_offset": 3},
-    {"id": "D1",  "name": "يوميات: الصباح والمدرسة",           "duration": 40, "voice_offset": 3},
-    {"id": "D2",  "name": "يوميات: المساء واللعب",             "duration": 40, "voice_offset": 3},
-    {"id": "D3",  "name": "يوميات: العودة للمنزل الدافئ",      "duration": 40, "voice_offset": 3},
-    {"id": "WIN", "name": "شاشة الفوز والاحتفال",              "duration": 40, "voice_offset": 3},
-    {"id": "FIN", "name": "لوحة الإعداد (بدون صوت)",           "duration": 20, "voice_offset": 0}
-  ]
+ "_comment": "Scene durations in seconds. Edit and run ./build.sh. voice_offset = seconds after the scene starts before the narration begins.",
+ "scenes": [
+  {
+   "id": "S0",
+   "name": "شاشة انطلاق اللعبة السحرية",
+   "duration": 35,
+   "voice_offset": 6
+  },
+  {
+   "id": "S1",
+   "name": "الحق في التعليم",
+   "duration": 22,
+   "voice_offset": 3
+  },
+  {
+   "id": "S2",
+   "name": "الحق في الرعاية الصحية",
+   "duration": 22,
+   "voice_offset": 3
+  },
+  {
+   "id": "S3",
+   "name": "الحق في اللعب والتعبير",
+   "duration": 22,
+   "voice_offset": 3
+  },
+  {
+   "id": "S4",
+   "name": "الحق في الأمان",
+   "duration": 21,
+   "voice_offset": 3
+  },
+  {
+   "id": "D1",
+   "name": "يوميات: الصباح والمدرسة",
+   "duration": 24,
+   "voice_offset": 3
+  },
+  {
+   "id": "D2",
+   "name": "يوميات: المساء واللعب",
+   "duration": 20,
+   "voice_offset": 3
+  },
+  {
+   "id": "D3",
+   "name": "يوميات: العودة للمنزل الدافئ",
+   "duration": 20,
+   "voice_offset": 3
+  },
+  {
+   "id": "WIN",
+   "name": "شاشة الفوز والاحتفال",
+   "duration": 26,
+   "voice_offset": 3
+  },
+  {
+   "id": "FIN",
+   "name": "لوحة الإعداد (بدون صوت)",
+   "duration": 15,
+   "voice_offset": 0
+  }
+ ]
 }
