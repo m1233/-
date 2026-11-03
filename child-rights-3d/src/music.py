@@ -18,15 +18,17 @@ import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD, OUT = os.path.join(ROOT, "build"), os.path.join(ROOT, "output")
-SR, T = 48000, 420.0
+SR = 48000
+T = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build", "timeline.json"), encoding="utf-8"))["duration"]
 N = int(SR * T)
 BPM = 100.0
 BEAT = 60.0 / BPM
 BAR = 4 * BEAT
 rng = np.random.default_rng(7)
 TL = json.load(open(os.path.join(BUILD, "timeline.json"), encoding="utf-8"))
-SCENES = [0, 60, 105, 150, 195, 240, 280, 320, 360, 400]
-FINAL, FADE = 400.0, 417.5
+SC = {k: v["start"] for k, v in TL["scenes"].items()}
+SCENES = [SC[k] for k in ["S0", "S1", "S2", "S3", "S4", "D1", "D2", "D3", "WIN", "FIN"]]
+FINAL, FADE = SC["FIN"], T - 2.5
 ASSETS = os.path.join(ROOT, "assets")
 
 
@@ -240,8 +242,8 @@ def build():
         drum_pts += [(c["start"] - 1, .45), (e + 1, .45), (e + 3, .8)]
     for s0 in SCENES[1:-1]:
         lead_pts += [(s0 - .2, .6)]; drum_pts += [(s0 - .2, .9)]
-    lead_pts += [(359, .55), (360, .65), (FINAL - 1, .65), (FINAL, 0), (T, 0)]
-    drum_pts += [(359, .8), (360, .95), (FINAL - 1.5, .95), (FINAL, 0), (T, 0)]
+    lead_pts += [(SC["WIN"] - 1, .55), (SC["WIN"], .65), (FINAL - 1, .65), (FINAL, 0), (T, 0)]
+    drum_pts += [(SC["WIN"] - 1, .8), (SC["WIN"], .95), (FINAL - 1.5, .95), (FINAL, 0), (T, 0)]
     lead_pts.sort(); drum_pts.sort()
     G = {"box": automation(box_pts), "lead": automation(lead_pts), "pad": automation(pad_pts),
          "bass": automation(bass_pts), "kick": automation(drum_pts), "snare": automation(drum_pts), "hat": automation(drum_pts)}
@@ -261,9 +263,9 @@ def build():
     add(sfx, 2.4, sfx_pop(), .4); add(sfx, 3.6, sfx_pop(), .3); add(sfx, 5.0, sfx_click(), .6); add(sfx, 5.05, sfx_powerup(), .5)
     for lv in ["S1", "S2", "S3", "S4"]:
         add(sfx, ends[lv] + 2.0, lvl, .6)
-    for s0 in [60, 105, 150, 195, 240, 280, 320]:
+    for s0 in SCENES[1:8]:
         add(sfx, s0 + 1.0, sfx_pop(), .3)
-    add(sfx, 360.0, cele, .7); add(sfx, 361.0, lvl, .5)
+    add(sfx, SC["WIN"], cele, .7); add(sfx, SC["WIN"] + 1.0, lvl, .5)
     music = music * .5 + sfx * .55
     return music, vx
 
@@ -299,7 +301,7 @@ if __name__ == "__main__":
     write_wav(os.path.join(BUILD, "mix_raw.wav"), mix / max(1, np.abs(mix).max()))
     # loudness: -14 LUFS (TikTok), true peak -1.5 dB, with the final fade kept
     ff("-i", os.path.join(BUILD, "mix_raw.wav"), "-af", "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000",
-       "-ar", "48000", "-ac", "2", "-t", "420", os.path.join(BUILD, "mix.wav"))
+       "-ar", "48000", "-ac", "2", "-t", str(T), os.path.join(BUILD, "mix.wav"))
     ff("-i", os.path.join(BUILD, "mix.wav"), "-c:a", "libmp3lame", "-b:a", "192k", os.path.join(OUT, "full-mix.mp3"))
     ff("-i", os.path.join(BUILD, "music.wav"), "-af", "loudnorm=I=-16:TP=-1.5", "-ar", "48000",
        "-c:a", "libmp3lame", "-b:a", "192k", os.path.join(OUT, "music-and-sfx.mp3"))

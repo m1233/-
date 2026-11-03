@@ -16,11 +16,18 @@ import edge_tts  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 B, A = os.path.join(ROOT, "build"), os.path.join(ROOT, "assets")
-SR, TOTAL = 48000, 420.0
+SR = 48000
 TAKE = os.path.join(A, "voice_halai.mp3")
 # paragraph id, scene, start cue (s)
-CUES = [("intro", "S0", 6.0), ("edu", "S1", 63.0), ("health", "S2", 108.0), ("play", "S3", 153.0), ("safe", "S4", 198.0),
-        ("morning", "D1", 243.0), ("evening", "D2", 283.0), ("home", "D3", 323.0), ("win", "WIN", 363.0)]
+CFG = json.load(open(os.path.join(ROOT, "config", "timing.json"), encoding="utf-8"))["scenes"]
+SCENES, t = {}, 0.0
+for sc in CFG:
+    SCENES[sc["id"]] = {"start": round(t, 3), "dur": float(sc["duration"]), "name": sc["name"]}; t += float(sc["duration"])
+TOTAL = round(t, 3)
+PIDS = ["intro", "edu", "health", "play", "safe", "morning", "evening", "home", "win"]
+SIDS = ["S0", "S1", "S2", "S3", "S4", "D1", "D2", "D3", "WIN"]
+OFF = {sc["id"]: float(sc.get("voice_offset", 3)) for sc in CFG}
+CUES = [(p, s, SCENES[s]["start"] + OFF[s]) for p, s in zip(PIDS, SIDS)]
 
 
 def ff(*a):
@@ -72,6 +79,8 @@ async def main():
         clip = os.path.join(B, f"c{i}.wav")
         ff("-ss", f"{lead:.3f}", "-to", f"{tail + .12:.3f}", "-i", seg, "-af", "afade=t=in:d=0.02,afade=t=out:st=%.3f:d=0.1" % (tail - lead), clip)
         chunks.append({"id": pid, "level": scene, "start": cue, "end": round(cue + tail - lead, 3), "text": paras[i], "words": words, "wav": clip})
+        room = SCENES[scene]["start"] + SCENES[scene]["dur"] - (cue + tail - lead)
+        if room < 1.5: print(f"WARNING: scene {scene} is too short for its narration ({room:.1f}s left)")
         print(f"{pid:8s} take {a:6.2f}-{b:6.2f}  speech {tail - lead:5.2f}s  at {cue:6.1f}->{cue + tail - lead:6.1f}  words={len(words)}")
     ins, flt = [], []
     for i, c in enumerate(chunks):
@@ -79,7 +88,7 @@ async def main():
     flt.append("".join(f"[a{i}]" for i in range(len(chunks))) + f"amix=inputs={len(chunks)}:normalize=0,apad=whole_dur={TOTAL},atrim=0:{TOTAL}[o]")
     ff(*ins, "-filter_complex", ";".join(flt), "-map", "[o]", "-ar", str(SR), "-ac", "1", os.path.join(B, "voice.wav"))
     words = sum(len(c["words"]) for c in chunks)
-    tl = {"duration": TOTAL, "voice": "ElevenLabs v4 · Jessica (Halai)", "words_total": words,
+    tl = {"duration": TOTAL, "scenes": SCENES, "voice": "ElevenLabs v4 · Jessica (Halai)", "words_total": words,
           "levels": {c["level"]: {"start": c["start"], "end": c["end"]} for c in chunks},
           "chunks": [{k: c[k] for k in ("id", "level", "start", "end", "text", "words")} for c in chunks]}
     json.dump(tl, open(os.path.join(B, "timeline.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)

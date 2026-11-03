@@ -9,9 +9,10 @@ const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const fs = require("fs"), path = require("path");
 const ROOT = path.resolve(__dirname, ".."), BUILD = path.join(ROOT, "build"), OUT = path.join(ROOT, "output");
-const FPS = 30, DUR = 420, W = 1080, H = 1920;
+const FPS = 30, W = 1080, H = 1920;
 const TL = JSON.parse(fs.readFileSync(path.join(BUILD, "timeline.json"), "utf8"));
-const PLAN = JSON.parse(fs.readFileSync(path.join(BUILD, "plan.json"), "utf8"));
+const PLAN = {};
+const DUR = TL.duration, FRAMES_ALL = Math.round(DUR * FPS);
 
 async function openPage(browser) {
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
@@ -61,6 +62,7 @@ async function concat() {
   console.log("final written");
 }
 const a = process.argv;
+if (a.includes("--frames")) { console.log(FRAMES_ALL); process.exit(0); }
 const i = a.indexOf("--stills"), r = a.indexOf("--range");
 (i > 0 ? stills(a[i + 1].split(",").map(Number)) : r > 0 ? range(+a[r + 1], +a[r + 2], a[r + 3]) : concat())
   .catch(e => { console.error(e); process.exit(1); });

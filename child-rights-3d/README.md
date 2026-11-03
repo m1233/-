@@ -50,3 +50,10 @@ node src/render.js --concat
 - **Voice:** an ElevenLabs adult voice (Jessica, young and playful). A real 10-year-old girl's voice cannot be generated. A real recording can replace `assets/voice_halai.mp3` and the timing rebuilds automatically.
 - **Pixar-level 3D characters and Kling video clips** would need more Halai credits (about 1,000 for the balanced tier). Within the available balance, the visuals are shaded vector art with 3D pop-up motion.
 - **Word timings** are estimated by stretching a reference reading over each paragraph of the real take. They are not forced-aligned to the audio.
+
+## Editing scene durations
+All timing comes from **`config/timing.json`**: one `duration` (seconds) per scene. The voice cues, music and effects, camera moves, titles, level unlocks and the final fade are all calculated from it.
+
+- **Visual editor:** https://claude.ai/artifact/8AY33quUpprhQ9QnMgj6jv. Change the durations or pick a preset (7:00, 5:00, 3:30, shortest possible), press «حفظ المدد», then ask Claude to rebuild.
+- **Manually:** edit `config/timing.json`, then run `./build.sh`.
+- Each scene has a minimum length so its narration is never cut (shown in the editor).

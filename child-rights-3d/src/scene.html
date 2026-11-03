@@ -54,7 +54,11 @@ svg { overflow: visible; display: block; }
    kinetic type, Halai (ElevenLabs) voice + SFX, own music.
    ============================================================ */
 const CH = Object.fromEntries(TL.chunks.map(c => [c.level, c]));
-const SC = { S0: 0, S1: 60, S2: 105, S3: 150, S4: 195, D1: 240, D2: 280, D3: 320, WIN: 360, FIN: 400 };
+const SCN = TL.scenes, TOTAL = TL.duration;
+const SC = Object.fromEntries(Object.entries(SCN).map(([k, v]) => [k, v.start]));
+const END = k => SCN[k].start + SCN[k].dur;
+const D1MID = SC.D1 + SCN.D1.dur * .45;
+const TOUR0 = CH.S0.end + 2.0, TOURSTEP = Math.max(2.5, (END("S0") - 5 - TOUR0) / 4);
 const LVL = ["S1", "S2", "S3", "S4"];
 const UNLOCK = LVL.map(k => CH[k].end + 2.0);
 const SET = { S0: [540, 960], S1: [1940, 960], S2: [3340, 960], S3: [3340, -1100], S4: [4740, -1100], D1a: [540, 3300], D1b: [1940, 3300], D2: [3340, 3300], D3: [4740, 3300] };
@@ -89,22 +93,22 @@ const K = [];
 (function () {
   const at = (k, dx = 0, dy = 0) => [SET[k][0] + dx, SET[k][1] + dy];
   const push = (t, xy, z) => K.push([t, xy[0], xy[1], z]);
-  push(0, at("S0", 0, 120), 1.25); push(4, at("S0"), 1.0); push(27.5, at("S0", 0, -20), 1.05);
-  [[29.5, -260, -170], [35.5, -90, -200], [41.5, 110, -220], [47.5, 290, -170]].forEach(([t, dx, dy]) => { push(t, at("S0", dx, dy), 1.75); push(t + 4.2, at("S0", dx * 1.05, dy), 1.8); });
-  push(55.5, at("S0"), .95);
-  const seq = [["S1", 60, 105], ["S2", 105, 150], ["S3", 150, 195], ["S4", 195, 240]];
+  push(0, at("S0", 0, 120), 1.25); push(4, at("S0"), 1.0); push(TOUR0 - .5, at("S0", 0, -20), 1.05);
+  [[-260, -170], [-90, -200], [110, -220], [290, -170]].forEach(([dx, dy], i) => { const t = TOUR0 + i * TOURSTEP; push(t + 1.2, at("S0", dx, dy), 1.75); push(t + TOURSTEP * .85, at("S0", dx * 1.05, dy), 1.8); });
+  push(END("S0") - 4.5, at("S0"), .95);
+  const seq = ["S1", "S2", "S3", "S4"].map(k => [k, SC[k], END(k)]);
   let prev = "S0";
   seq.forEach(([k, a, b]) => {
     push(a - 2.2, [(SET[prev][0] + SET[k][0]) / 2, (SET[prev][1] + SET[k][1]) / 2], .66);
     push(a, at(k, 0, -60), 1.0); push(a + 3, at(k, 0, -20), 1.02); push(CH[k].end, at(k, 0, 30), 1.1); push(b - 4, at(k, 0, 60), 1.03);
     prev = k;
   });
-  push(237.5, [2600, 1100], .3);
-  push(240, at("D1a", 0, -40), 1.0); push(256.5, at("D1a", 0, 20), 1.08);
-  push(258, at("D1b", 0, -30), 1.0); push(278, at("D1b", 0, 30), 1.07);
-  push(280, at("D2", 0, -30), 1.0); push(318, at("D2", 0, 30), 1.08);
-  push(320, at("D3", 0, -30), 1.0); push(357.5, at("D3", 0, 40), 1.08);
-  push(360.5, [2640, 1100], .28); push(420, [2640, 1080], .27);
+  push(SC.D1 - 2.5, [2600, 1100], .3);
+  push(SC.D1, at("D1a", 0, -40), 1.0); push(D1MID - 1.5, at("D1a", 0, 20), 1.08);
+  push(D1MID, at("D1b", 0, -30), 1.0); push(END("D1") - 2, at("D1b", 0, 30), 1.07);
+  push(SC.D2, at("D2", 0, -30), 1.0); push(END("D2") - 2, at("D2", 0, 30), 1.08);
+  push(SC.D3, at("D3", 0, -30), 1.0); push(END("D3") - 2.5, at("D3", 0, 40), 1.08);
+  push(SC.WIN + .5, [2640, 1100], .28); push(TOTAL, [2640, 1080], .27);
   K.sort((a, b) => a[0] - b[0]);
 })();
 function camAt(t) {
@@ -186,13 +190,13 @@ function room(wallTop, wallBot) {
 
 /* ===== S0: flying island with the four landmarks ===== */
 function setS0() {
-  const g = set("S0", 0, 60), L0 = layer(g, .3, 0), L1 = layer(g, .3, 1), L2 = layer(g, .3, 2);
+  const g = set("S0", 0, END("S0") + 1), L0 = layer(g, .3, 0), L1 = layer(g, .3, 1), L2 = layer(g, .3, 2);
   svgEl(L0, 1080, 1920, `${cloudPuffs(170, 1240, 380, .95)}${cloudPuffs(910, 1210, 360, .95)}${floatingRock(540, 900, 940)}${cloudPuffs(540, 1360, 520, .9)}`, "left:0;top:0");
   svgEl(L1, 1080, 1920, `${schoolBuilding(270, 890, .3)}${palm(420, 885, .55)}${palm(470, 880, .42)}
     <g transform="translate(640,885)"><path d="M-70 0 L-40 -190 L40 -190 L70 0" fill="none" stroke="url(#shirtBlue)" stroke-width="12"/><line x1="-30" y1="-185" x2="-30" y2="-60" stroke="#9AA3B8" stroke-width="3"/><line x1="30" y1="-185" x2="30" y2="-60" stroke="#9AA3B8" stroke-width="3"/><rect x="-42" y="-64" width="84" height="12" rx="5" fill="url(#wood)"/></g>
     <g transform="translate(830,885) scale(1.15)">${iconG("house", 0, -80, .85)}</g>
     ${tree(120, 890, .32)}${tree(960, 890, .3, "leafD")}`, "left:0;top:0");
-  const lab = [["المستوى 1", 270, 29.5], ["المستوى 2", 440, 35.5], ["المستوى 3", 640, 41.5], ["المستوى 4", 830, 47.5]].map(([n, x, t0]) => {
+  const lab = [["المستوى 1", 270], ["المستوى 2", 440], ["المستوى 3", 640], ["المستوى 4", 830]].map(([n, x], i) => { const t0 = TOUR0 + i * TOURSTEP + 1.2;
     const d = el("div", { class: "abs", style: `left:${x}px;top:610px` }, L2, `<div class="pill glassL" style="font-size:30px;color:#3B3A78">${icon("lock", 34)}${n}</div>`);
     on(t => { const k = popScale(t, t0 + .4, .6); d.style.opacity = clamp(prog(t, t0 + .4, t0 + .8)); tf(d, `translate(-50%,-50%) scale(${k * .9})`); });
     return d;
@@ -206,7 +210,7 @@ function setS0() {
 }
 /* ===== S1: school of knowledge ===== */
 function setS1() {
-  const s0 = SC.S1, g = set("S1", s0 - 4, s0 + 47), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
+  const s0 = SC.S1, g = set("S1", s0 - 4, END("S1") + 2), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
   svgEl(L0, 1080, 1920, `<circle cx="540" cy="720" r="560" fill="url(#glowB)" opacity=".25"/>${floatingRock(540, 1090, 1000)}${cloudPuffs(150, 1210, 300)}${cloudPuffs(940, 1190, 280)}`, "left:0;top:0");
   const kid = figure({ h: 290, kid: true, top: "shirtYellow", sleeve: "#E9B92E", bottom: "shirtBlue", hair: "pony", hairG: "hairBrown", aR: -150, bR: -10 });
   const sch = svgEl(L1, 1080, 1920, `${schoolBuilding(540, 1080, .95)}${tree(120, 1085, .55)}${tree(960, 1085, .5, "leafD")}<g transform="translate(830,1090)">${kid.svg}${iconG("backpack", -10, -150, .32)}</g>`, "left:0;top:0");
@@ -229,7 +233,7 @@ function setS1() {
 }
 /* ===== S2: medical oasis ===== */
 function setS2() {
-  const s0 = SC.S2, g = set("S2", s0 - 4, s0 + 47), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
+  const s0 = SC.S2, g = set("S2", s0 - 4, END("S2") + 2), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
   svgEl(L0, 1080, 1920, `<circle cx="540" cy="700" r="560" fill="url(#glowY)" opacity=".22"/>${floatingRock(540, 1060, 1000)}
     <ellipse cx="560" cy="1090" rx="230" ry="58" fill="url(#sand)"/><ellipse cx="560" cy="1092" rx="196" ry="44" fill="url(#water)"/><ellipse class="rip" cx="560" cy="1092" rx="120" ry="28" fill="none" stroke="#fff" stroke-width="3"/>`, "left:0;top:0");
   const doc = figure({ h: 470, coat: true, top: "coat", sleeve: "#E9EEF6", bottom: "pants", hairG: "hairBlack", aR: -140, bR: -20, aL: 14, bL: -8 });
@@ -249,7 +253,7 @@ function setS2() {
 }
 /* ===== S3: playground above the clouds ===== */
 function setS3() {
-  const s0 = SC.S3, g = set("S3", s0 - 4, s0 + 47), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
+  const s0 = SC.S3, g = set("S3", s0 - 4, END("S3") + 2), L0 = layer(g, s0 + .3, 0), L1 = layer(g, s0 + .3, 1), L2 = layer(g, s0 + .3, 2);
   const rb = ["#FF8FA8", "#FFB870", "#FFE58A", "#9AF2C6", "#8EC8FF", "#C9A8FF"];
   svgEl(L0, 1080, 1920, rb.map((c, i) => `<path d="M${80 + i * 26} 1030 A ${460 - i * 26} ${460 - i * 26} 0 0 1 ${1000 - i * 26} 1030" fill="none" stroke="${c}" stroke-width="28" opacity=".7"/>`).join("") + cloudPuffs(540, 1110, 1020) + cloudPuffs(290, 1210, 540) + cloudPuffs(820, 1220, 500), "left:0;top:0");
   const k1 = figure({ h: 280, kid: true, top: "shirtYellow", sleeve: "#E9B92E", bottom: "shirtBlue", hair: "pony", hairG: "hairBrown", aL: 168, bL: 0, aR: -168, bR: 0, legScale: .6 });
@@ -286,7 +290,7 @@ function animFire(root, t) {
   root.querySelector(".fglow").setAttribute("opacity", .45 + .15 * Math.sin(t * 6) * Math.sin(t * 2.3));
 }
 function setS4() {
-  const s0 = SC.S4, g = set("S4", s0 - 4, s0 + 47), L0 = layer(g, s0 + .2, 0), L1 = layer(g, s0 + .2, 1), L2 = layer(g, s0 + .2, 2);
+  const s0 = SC.S4, g = set("S4", s0 - 4, END("S4") + 3), L0 = layer(g, s0 + .2, 0), L1 = layer(g, s0 + .2, 1), L2 = layer(g, s0 + .2, 2);
   svgEl(L0, 1080, 1920, room("#FFE9D2", "#FFD7C2") + windowNight(110, 470, 230, 260, false) + `<rect x="760" y="460" width="170" height="130" rx="10" fill="#fff"/><rect x="772" y="472" width="146" height="106" rx="6" fill="url(#shirtMint)"/>${iconG("heart", 845, 525, .3)}
     <ellipse cx="540" cy="1120" rx="420" ry="60" fill="url(#shirtPink)" opacity=".55"/>`, "left:0;top:0");
   const fp = svgEl(L1, 1080, 1920, fireplace(540, 1040, .9) + sofa(800, 1110, .55), "left:0;top:0");
@@ -299,7 +303,7 @@ function setS4() {
 }
 /* ===== D1: morning — bedroom, then classroom ===== */
 function setD1() {
-  const ga = set("D1a", 236, 260), L0 = layer(ga, 240.1, 0), L1 = layer(ga, 240.1, 1);
+  const ga = set("D1a", SC.D1 - 4, D1MID + 1), L0 = layer(ga, SC.D1 + .1, 0), L1 = layer(ga, SC.D1 + .1, 1);
   svgEl(L0, 1080, 1920, room("#E3F1FF", "#CFE6FF") + windowNight(640, 450, 300, 300, true) + `<g transform="translate(200,600)"><rect x="-60" y="-70" width="120" height="120" rx="60" fill="#fff"/><circle r="50" fill="url(#page)"/><line x1="0" y1="0" x2="0" y2="-34" stroke="#3B3A78" stroke-width="6"/><line x1="0" y1="0" x2="22" y2="8" stroke="#3B3A78" stroke-width="6"/></g>`, "left:0;top:0");
   const kid = figure({ h: 300, kid: true, top: "shirtYellow", sleeve: "#E9B92E", bottom: "shirtBlue", hairG: "hairBrown", hair: "pony", aL: 150, bL: 20, aR: -150, bR: -20, legScale: .01 });
   const bd = svgEl(L1, 1080, 1920, `${bed(540, 1130, 1.25)}<g class="kid" transform="translate(470,1020)">${kid.svg}</g><path d="M300 1020 Q540 960 800 1010 V1100 H300Z" fill="url(#shirtBlue)"/>${Array.from({ length: 8 }, () => `<g class="sp">${sparkle(18)}</g>`).join("")}`, "left:0;top:0");
@@ -309,7 +313,7 @@ function setD1() {
     bd.querySelector(".kid").setAttribute("transform", `translate(470,${1020 + Math.abs(s) * -6})`);
     bd.querySelectorAll(".sp").forEach((p, i) => { const ph = (t * .4 + i / 8) % 1; p.setAttribute("transform", `translate(${420 + Math.cos(i * 1.7) * (80 + ph * 160)},${760 - ph * 180}) scale(${Math.sin(ph * Math.PI)})`); });
   });
-  const gb = set("D1b", 256, 281), M0 = layer(gb, 258.1, 0), M1 = layer(gb, 258.1, 1);
+  const gb = set("D1b", D1MID - 2, END("D1") + 1), M0 = layer(gb, D1MID + .1, 0), M1 = layer(gb, D1MID + .1, 1);
   svgEl(M0, 1080, 1920, room("#FFF4D6", "#FFE7B8") + `<rect x="150" y="430" width="560" height="320" rx="18" fill="url(#wood)"/><rect x="170" y="450" width="520" height="280" rx="10" fill="#2F6B55"/>
     <text x="430" y="620" text-anchor="middle" font-family="Cairo" font-weight="800" font-size="92" fill="#F4F7EF" opacity=".92">٢ + ٣ = ٥</text><circle cx="600" cy="520" r="34" fill="none" stroke="#FFE58A" stroke-width="6" opacity=".9"/>
     <path d="M260 680 l40 -60 l40 60z" fill="none" stroke="#FFB8DE" stroke-width="6"/>${iconG("planet", 870, 560, .6)}`, "left:0;top:0");
@@ -325,7 +329,7 @@ function setD1() {
 }
 /* ===== D2: evening park ===== */
 function setD2() {
-  const g = set("D2", 276, 321), L0 = layer(g, 280.1, 0), L1 = layer(g, 280.1, 1), L2 = layer(g, 280.1, 2);
+  const g = set("D2", SC.D2 - 4, END("D2") + 1), L0 = layer(g, SC.D2 + .1, 0), L1 = layer(g, SC.D2 + .1, 1), L2 = layer(g, SC.D2 + .1, 2);
   svgEl(L0, 1080, 1920, `<circle cx="820" cy="480" r="200" fill="url(#glowY)"/><circle cx="820" cy="480" r="90" fill="#FFD36A"/>${cloudPuffs(220, 520, 300, .95)}
     <path d="M0 960 Q300 860 600 930 T1080 900 V1300 H0Z" fill="url(#grass)"/><path d="M0 1040 Q400 960 1080 1040 V1300 H0Z" fill="#5FC27A"/>${tree(150, 1000, .8)}${tree(930, 990, .7, "leafD")}${tree(560, 950, .5)}`, "left:0;top:0");
   const kids = [["shirtPink", "#E06EA2", "pony", "hairBrown", 270], ["shirtMint", "#3FC690", "", "hairBlack", 260], ["shirtYellow", "#E9B92E", "pony", "hairDark", 280], ["shirtBlue", "#3F80CF", "", "hairBrown", 265]]
@@ -336,18 +340,18 @@ function setD2() {
   const bf = svgEl(L2, 1080, 1920, Array.from({ length: 5 }, (_, i) => `<g class="bf"><ellipse rx="16" ry="10" fill="${[PKc, BL, YL, "#C9A8FF", "#9AF2C6"][i]}" transform="translate(-10,0) rotate(-30)"/><ellipse rx="16" ry="10" fill="${[PKc, BL, YL, "#C9A8FF", "#9AF2C6"][i]}" transform="translate(10,0) rotate(30)"/></g>`).join(""), "left:0;top:0");
   on(t => {
     if (g.style.display === "none") return;
-    run.querySelectorAll(".rk").forEach((r, i) => { const x = 120 + ((t - 280) * (60 + i * 12) + i * 230) % 860, y = 1160 + i % 2 * 40 - Math.abs(Math.sin(t * 8 + i)) * 22;
+    run.querySelectorAll(".rk").forEach((r, i) => { const x = 120 + ((t - SC.D2) * (60 + i * 12) + i * 230) % 860, y = 1160 + i % 2 * 40 - Math.abs(Math.sin(t * 8 + i)) * 22;
       r.setAttribute("transform", `translate(${x},${y}) scale(${i % 2 ? -1 : 1},1)`); const k = kids[i];
       r.querySelector(`.${k.id}Lu`).setAttribute("transform", `rotate(${40 * Math.sin(t * 8 + i)})`); r.querySelector(`.${k.id}Ru`).setAttribute("transform", `rotate(${-40 * Math.sin(t * 8 + i)})`); });
     const kx = 760 + Math.sin(t * .8) * 60, ky = 620 + Math.cos(t * 1.1) * 40; run.querySelector(".kite").setAttribute("transform", `translate(${kx},${ky}) rotate(${Math.sin(t * 1.3) * 12})`);
     run.querySelector(".ks").setAttribute("d", `M0 70 Q${-200} ${300} ${-300 + (kx - 760)} ${520}`);
-    const ph = (t * .7) % 1; tf(ball, `translate(${300 + ((t - 280) * 90) % 520 - 60}px,${1180 - Math.abs(Math.sin(ph * Math.PI)) * 200 - 60}px) rotate(${t * 200}deg)`);
+    const ph = (t * .7) % 1; tf(ball, `translate(${300 + ((t - SC.D2) * 90) % 520 - 60}px,${1180 - Math.abs(Math.sin(ph * Math.PI)) * 200 - 60}px) rotate(${t * 200}deg)`);
     bf.querySelectorAll(".bf").forEach((b, i) => { const s = .5 + .5 * Math.abs(Math.sin(t * 12 + i)); b.setAttribute("transform", `translate(${200 + i * 160 + Math.sin(t * .9 + i) * 80},${780 + Math.cos(t * 1.2 + i * 2) * 70}) scale(${s},1)`); });
   });
 }
 /* ===== D3: cosy kid room, family together ===== */
 function setD3() {
-  const g = set("D3", 316, 362), L0 = layer(g, 320.1, 0), L1 = layer(g, 320.1, 1), L2 = layer(g, 320.1, 2);
+  const g = set("D3", SC.D3 - 4, END("D3") + 2), L0 = layer(g, SC.D3 + .1, 0), L1 = layer(g, SC.D3 + .1, 1), L2 = layer(g, SC.D3 + .1, 2);
   svgEl(L0, 1080, 1920, room("#F3E8FF", "#E6D6FF") + windowNight(700, 440, 260, 280, false) + `<rect x="120" y="470" width="300" height="20" rx="6" fill="url(#wood)"/>${iconG("books", 200, 430, .4)}${iconG("balloon", 340, 420, .35)}
     <rect x="120" y="620" width="300" height="20" rx="6" fill="url(#wood)"/>${iconG("gamepad", 210, 590, .35)}${iconG("star", 340, 585, .3)}
     <ellipse cx="540" cy="1120" rx="420" ry="60" fill="url(#shirtBlue)" opacity=".4"/>`, "left:0;top:0");
@@ -490,7 +494,7 @@ function chip(text, ic, t0, t1) {
 /* whoosh flash between scenes */
 function flashes() {
   const f = el("div", { class: "abs", style: "inset:0;background:radial-gradient(circle at 50% 45%, rgba(255,255,255,.95), rgba(255,240,200,.6) 45%, rgba(255,255,255,0) 75%)" }, ov2);
-  const T = [SC.S1, SC.S2, SC.S3, SC.S4, SC.D1, 258, SC.D2, SC.D3, SC.WIN];
+  const T = [SC.S1, SC.S2, SC.S3, SC.S4, SC.D1, D1MID, SC.D2, SC.D3, SC.WIN];
   on(t => { let v = 0; T.forEach(s => { const k = prog(t, s - .45, s + .35); if (k > 0 && k < 1) v = Math.max(v, Math.sin(k * Math.PI) * .75); }); op(f, v); });
 }
 /* confetti */
@@ -545,20 +549,20 @@ function finalCard() {
     drawBG(t, { x: 0, y: 0, z: 1 }, sc, .25);
     const ck = E.out(prog(t, F + 1.0, F + 3.0)); card.style.opacity = ck; tf(card, `translate(-50%,-50%) translateY(${(1 - ck) * 40}px) scale(${lerp(.95, 1, ck)})`);
     a.style.opacity = prog(t, F + 1.6, F + 3.0); b.style.opacity = prog(t, F + 2.2, F + 3.8);
-    $("#black").style.opacity = E.io(prog(t, 417.5, 420));
+    $("#black").style.opacity = E.io(prog(t, TOTAL - 2.5, TOTAL));
   });
 }
 
 /* =========================== BUILD =========================== */
 setS0(); setS1(); setS2(); setS3(); setS4(); setD1(); setD2(); setD3();
-balloons(5.2, 40, 16, 1);
-kTitle("حقوق الطفل:\nيوم سعيد لكل طفل 🚀", 2.4, 5.6, 28.5, 110, 470, .62, ["b", "p", "y"], 520);
+balloons(5.2, TOUR0 + 10, 16, 1);
+kTitle("حقوق الطفل:\nيوم سعيد لكل طفل 🚀", 2.4, 5.6, TOUR0 - .8, 110, 470, .62, ["b", "p", "y"], 520);
 startButton();
-kTitle("حقك أن تتعلم وتكبر 🧠✨", SC.S1 + 1.0, SC.S1 + 3.4, SC.S2 - 2.4, 96);
-kTitle("جسد قوي وعقل ذكي 🍏💪", SC.S2 + 1.0, SC.S2 + 3.4, SC.S3 - 2.4, 96);
-kTitle("العب.. عبّر..\nوتحدث بحرية 🎤🎈", SC.S3 + 1.0, SC.S3 + 3.4, SC.S4 - 2.4, 104);
-kTitle("الأمان هو سر سعادتنا 🏠❤️", SC.S4 + 1.0, SC.S4 + 3.4, SC.D1 - 2.4, 92);
-chip("الصباح والمدرسة", "school", SC.D1 + .6, SC.D2 - .6); chip("المساء واللعب", "ball", SC.D2 + .6, SC.D3 - .6); chip("العودة للمنزل الدافئ", "house", SC.D3 + .6, SC.WIN - .6);
+kTitle("حقك أن تتعلم وتكبر 🧠✨", SC.S1 + 1.0, SC.S1 + 3.4, END("S1") - 2.4, 96);
+kTitle("جسد قوي وعقل ذكي 🍏💪", SC.S2 + 1.0, SC.S2 + 3.4, END("S2") - 2.4, 96);
+kTitle("العب.. عبّر..\nوتحدث بحرية 🎤🎈", SC.S3 + 1.0, SC.S3 + 3.4, END("S3") - 2.4, 104);
+kTitle("الأمان هو سر سعادتنا 🏠❤️", SC.S4 + 1.0, SC.S4 + 3.4, END("S4") - 2.4, 92);
+chip("الصباح والمدرسة", "school", SC.D1 + .6, END("D1") - .6); chip("المساء واللعب", "ball", SC.D2 + .6, END("D2") - .6); chip("العودة للمنزل الدافئ", "house", SC.D3 + .6, END("D3") - .6);
 LVL.forEach((k, i) => unlockToast(i));
 balloons(SC.WIN + .2, SC.FIN + .5, 14, 7);
 winScreen();
