@@ -46,6 +46,27 @@ async function open() {
       fs.writeFileSync(path.join(ROOT, `build/stills/t${String(s.toFixed(1)).padStart(6, '0')}.jpg`), Buffer.from(url.split(',')[1], 'base64'));
       console.log(`still ${s}s  ${Date.now() - t0} ms`);
     }
+  } else if (a[0] === '--chunks') {
+    // resumable: worker w of J renders 100-frame chunks k where k % J == w, skipping finished ones
+    const w = +a[1], J = +a[2], CH = +(a[3] || 100);
+    const dir = path.join(ROOT, 'build/chunks'); fs.mkdirSync(dir, { recursive: true });
+    const n = Math.ceil(total / CH);
+    for (let k = w; k < n; k += J) {
+      const fin = path.join(dir, `c_${String(k).padStart(4, '0')}.mp4`);
+      if (fs.existsSync(fin)) continue;
+      const tmp = fin.replace('.mp4', '.part.mp4');
+      const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
+        '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-f', 'mp4', tmp], { stdio: ['pipe', 'inherit', 'inherit'] });
+      const t0 = Date.now();
+      for (let f = k * CH; f < Math.min(total, (k + 1) * CH); f++) {
+        const url = await page.evaluate(t => window.renderFrame(t, 0.94), f / FPS);
+        if (!ff.stdin.write(Buffer.from(url.split(',')[1], 'base64'))) await new Promise(r => ff.stdin.once('drain', r));
+      }
+      ff.stdin.end(); await new Promise(r => ff.on('close', r));
+      fs.renameSync(tmp, fin);
+      console.log(`[w${w}] chunk ${k + 1}/${n} done  ${((Date.now() - t0) / CH).toFixed(0)} ms/frame`);
+    }
+    console.log(`[w${w}] all done`);
   } else if (a[0] === '--range') {
     const A = +a[1], Bf = Math.min(+a[2], total), name = a[3] || 'seg';
     const outFile = path.join(ROOT, `build/seg_${name}.mp4`);
