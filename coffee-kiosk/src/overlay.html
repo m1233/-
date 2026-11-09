@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<title>Kiosk Overlay</title>
+<style>
+@font-face { font-family: Cairo; src: url(/assets/Cairo-Variable.ttf); font-weight: 200 1000; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: Cairo, sans-serif; }
+#stage, #ui { position: absolute; inset: 0; }
+#ui { pointer-events: none; }
+canvas { display: block; }
+.label { position: absolute; left: 0; top: 0; transform-origin: 0 0; white-space: nowrap; }
+.label .dot { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 5px rgba(201,151,94,.55), 0 0 18px rgba(0,0,0,.5); }
+.label .stem { position: absolute; width: 2px; background: rgba(255,255,255,.85); left: -1px; }
+.label .pill { position: absolute; transform: translate(-50%, -100%); background: rgba(14,14,14,.82); border: 1.5px solid rgba(201,151,94,.9);
+  border-radius: 14px; padding: 8px 22px 10px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.label .ar { color: #fff; font-weight: 800; font-size: 34px; line-height: 1.15; direction: rtl; }
+.label .en { color: #d8b88f; font-weight: 600; font-size: 19px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.2; }
+#chapter { position: absolute; right: 70px; bottom: 64px; text-align: right; direction: rtl; }
+#chapter .bar { width: 70px; height: 5px; background: #c9975e; margin: 0 0 14px auto; border-radius: 3px; }
+#chapter .ar { color: #fff; font-size: 46px; font-weight: 800; text-shadow: 0 3px 18px rgba(0,0,0,.6); line-height: 1.2; }
+#chapter .en { color: #e8d3b5; font-size: 22px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 2px 10px rgba(0,0,0,.6); direction: ltr; }
+#brand { position: absolute; left: 60px; top: 46px; display: flex; align-items: center; gap: 16px; }
+#brand img { width: 64px; height: 64px; }
+#brand .t { color: #fff; font-weight: 800; font-size: 30px; text-shadow: 0 2px 12px rgba(0,0,0,.6); line-height: 1.1; }
+#brand .s { color: #e8d3b5; font-size: 16px; font-weight: 600; letter-spacing: .14em; }
+#title, #end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+#title { background: radial-gradient(ellipse at center, rgba(0,0,0,.45), rgba(0,0,0,.05) 70%); }
+#title .k { color: #e8d3b5; font-size: 30px; letter-spacing: .3em; font-weight: 600; }
+#title .h { color: #fff; font-size: 150px; font-weight: 900; line-height: 1.1; text-shadow: 0 8px 40px rgba(0,0,0,.55); }
+#title .s { color: #fff; font-size: 44px; font-weight: 700; text-shadow: 0 4px 20px rgba(0,0,0,.6); }
+#title .line, #end .line { width: 0; height: 4px; background: #c9975e; margin: 18px auto; border-radius: 2px; }
+#end { background: #0d0b0a; }
+#end img { width: 230px; height: 230px; }
+#end .h { color: #fff; font-size: 120px; font-weight: 900; line-height: 1.15; }
+#end .s { color: #e8d3b5; font-size: 42px; font-weight: 700; direction: rtl; }
+#end .e { color: #9a8a76; font-size: 24px; letter-spacing: .3em; font-weight: 600; margin-top: 8px; }
+#vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 62%, rgba(0,0,0,.28) 100%); }
+#flash { position: absolute; inset: 0; background: #000; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div id="vignette"></div>
+  <div id="labels"></div>
+  <div id="brand"><img id="brandLogo"><div><div class="t">عنوان القهوة</div><div class="s">DRIVE-THRU KIOSK · 3 × 5 m</div></div></div>
+  <div id="chapter"><div class="bar"></div><div class="ar"></div><div class="en"></div></div>
+  <div id="title"><div class="k">VIRTUAL WALKTHROUGH</div><div class="h">عنوان القهوة</div><div class="line"></div><div class="s">جولة داخل كشك الدرايف ثرو · ٣ × ٥ م</div></div>
+  <div id="end"><img id="endLogo"><div class="h">عنوان القهوة</div><div class="line"></div><div class="s">جاهزون لاستقبال طلباتكم</div><div class="e">READY TO SERVE</div></div>
+  <div id="flash"></div>
+</div>
+<script src="/src/overlay.js"></script>
+</body>
+</html>
