@@ -12,6 +12,7 @@ const captions = {
   cap2: 'خطوة بخطوة',
   cap3: 'حتى اكتمل الحلم',
   cap4: 'اطلب من سيارتك',
+  cap5: 'من الداخل',
 };
 const capHtml = t => `<style>${base}body{background:transparent;display:flex;align-items:flex-end;justify-content:center}
 .c{margin-bottom:300px;padding:18px 54px;border-radius:999px;background:rgba(15,15,15,.55);color:#fff;font-size:72px;font-weight:700;
@@ -21,7 +22,7 @@ align-items:center;justify-content:center;gap:40px}
 img{width:460px;height:460px;border-radius:50%;box-shadow:0 0 0 10px #f2f2f2,0 30px 80px rgba(0,0,0,.6)}
 h1{font-size:150px;font-weight:800;line-height:1.1;margin-top:40px}
 p{font-size:64px;font-weight:500;color:#d9d9d9}.line{width:220px;height:4px;background:#bdbdbd;border-radius:2px}</style>
-<img src="${logoUri}"><h1>عنوان القهوة</h1><div class="line"></div><p>جاهزون لاستقبال طلباتكم</p>`;
+<img src="${logoUri}"><h1>عنوان القهوة</h1>`;
 (async () => {
   const b = await chromium.launch(); const pg = await b.newPage({ viewport: { width: 1080, height: 1920 } });
   for (const [k, t] of Object.entries(captions)) {

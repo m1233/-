@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-const W = 1920, H = 1080;
+const PORTRAIT = new URLSearchParams(location.search).has('portrait');
+const W = PORTRAIT ? 1080 : 1920, H = PORTRAIT ? 1920 : 1080;
 export const DURATION = 60;
 
 // ---------------------------------------------------------------- helpers
@@ -723,7 +724,7 @@ function render(t) {
   const bob = inDoors ? Math.sin(t * 9.5) * .012 * clamp(speed / .6) : 0;
   camera.position.set(p.x + Math.sin(t * .7) * .006, p.y + bob + Math.sin(t * 1.1) * .004, p.z + Math.cos(t * .8) * .006);
   camera.lookAt(l.x + Math.sin(t * .53) * .01, l.y + Math.sin(t * .71) * .008, l.z);
-  camera.fov = t < 10 ? 50 : THREE.MathUtils.lerp(50, 68, smooth(ramp(t, 10, 14.5)));
+  camera.fov = (t < 10 ? 50 : THREE.MathUtils.lerp(50, 68, smooth(ramp(t, 10, 14.5)))) * (PORTRAIT ? 1.32 : 1);
   camera.updateProjectionMatrix();
   // interior exposure lift once inside
   renderer.toneMappingExposure = THREE.MathUtils.lerp(1.0, 1.12, smooth(ramp(t, 12, 15)));
