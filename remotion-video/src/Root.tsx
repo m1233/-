@@ -104,7 +104,7 @@ export const RemotionRoot: React.FC = () => {
           width={1920}
           height={1080}
           fps={30}
-          durationInFrames={108}
+          durationInFrames={120}
           defaultProps={{children: 'الجزيرةُ الأولى: كنزُ الحماية', style: {color: '#3d8bfd', fontSize: 104}}}
         />
       </Folder>
