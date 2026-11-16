@@ -3,6 +3,7 @@ import {TransitionSeries} from '@remotion/transitions';
 import {AbsoluteFill, interpolate, staticFile, Track, useCurrentFrame, useVideoConfig} from 'remotion';
 import {ArabicTitle} from './ArabicTitle';
 import {CloudWipe} from './CloudWipe';
+import {EndCard} from './EndCard';
 import {WorldScene} from './WorldScene';
 
 // World Children's Day: the treasure map of children's rights (5 floating islands).
@@ -104,6 +105,9 @@ export const ChildRightsDay: React.FC = () => {
       </TransitionSeries.Overlay>
       <TransitionSeries.Sequence name="Finale" durationInFrames={422}>
         <WorldScene name="Finale world" world="finale" start={326.407} />
+      </TransitionSeries.Sequence>
+      <TransitionSeries.Sequence name="Credits" durationInFrames={150}>
+        <EndCard name="Credit card" role="إعداد المعلمة" teacher="فاطمة الغامدي" />
       </TransitionSeries.Sequence>
       </TransitionSeries>
       <AbsoluteFill

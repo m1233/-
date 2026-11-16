@@ -12,7 +12,7 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         fps={30}
-        durationInFrames={10214}
+        durationInFrames={10364}
       />
       <Folder name="Scenes">
         <Composition
