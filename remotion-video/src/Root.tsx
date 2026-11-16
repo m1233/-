@@ -1,6 +1,7 @@
 import {Composition, Folder} from 'remotion';
 import {ArabicTitle} from './ArabicTitle';
 import {ChildRightsDay} from './Composition';
+import {EndCard} from './EndCard';
 import {WorldScene} from './WorldScene';
 
 export const RemotionRoot: React.FC = () => {
@@ -98,6 +99,15 @@ export const RemotionRoot: React.FC = () => {
         />
       </Folder>
       <Folder name="Elements">
+        <Composition
+          id="TeacherCredit"
+          component={EndCard}
+          width={1920}
+          height={1080}
+          fps={30}
+          durationInFrames={150}
+          defaultProps={{role: 'إعداد المعلمة', teacher: 'فاطمة الغامدي'}}
+        />
         <Composition
           id="IslandTitle"
           component={ArabicTitle}
